@@ -1,7 +1,10 @@
+#include <iostream>
 #include "plan.hpp"
 
-int main()
-{
+int main() {
 
-    return 0;
+    VertretungsBoy::plan test("http://example.com");
+    test.update();
+
+    return  0;
 }
