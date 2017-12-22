@@ -1,5 +1,5 @@
 //
-// Created by pi on 12/20/17.
+// Created by StuBIT on 12/20/17.
 //
 
 #ifndef VERTRETUNGSBOY_VERTRETUNGSBOY_HPP
@@ -21,13 +21,20 @@ namespace VertretungsBoy {
         static bool curlGlobalInit;
 
     private:
-        std::vector<std::string> curlDownloads;
+        std::vector<std::string> htmls;
         std::vector<std::string> urls;
         bool download(size_t urlsIndex);
-        static size_t writer(char *ptr, size_t size, size_t nmemb, void *userdata);
+        static size_t curlWriter(char *ptr, size_t size, size_t n, void *userData);
 
-        bool parser(bool table, size_t curlDownloadsIndex); //true table, false date
-        std::vector<std::vector<std::string>> table;
+        std::vector<std::string> dates;
+        std::vector<std::vector<std::vector<std::string>>> tables;
+        std::vector<std::vector<std::string>> parser(const std::string &html);
+        std::string toUTF8(char token);
+        void tableWriter(std::string tokens, std::string &output);
+        bool replace, styleElement;
+        size_t replaceCounter = 0;
+
+
         std::string dbPath;
     };
 };

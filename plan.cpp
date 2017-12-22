@@ -1,5 +1,5 @@
 //
-// Created by pi on 12/20/17.
+// Created by StuBIT on 12/20/17.
 //
 
 #include "plan.hpp"
@@ -14,7 +14,11 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : 
         VertretungsBoy::plan::curlGlobalInit = true;
     }
 
-    curlDownloads.resize(urls.size());
+    htmls.resize(urls.size());
+    tables.resize(urls.size());
+    replace = false;
+    styleElement = false;
+
 
     /*  TODO: Check if data-bank exist
      *
@@ -29,7 +33,12 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls) : urls(urls) {
         VertretungsBoy::plan::curlGlobalInit = true;
     }
 
-    curlDownloads.resize(urls.size());
+    htmls.resize(urls.size());
+    tables.resize(urls.size());
+    replace = false;
+    styleElement = false;
+
+
 }
 
 VertretungsBoy::plan::plan(std::string url) {
@@ -40,13 +49,31 @@ VertretungsBoy::plan::plan(std::string url) {
         VertretungsBoy::plan::curlGlobalInit = true;
     }
 
-    curlDownloads.resize(urls.size());
+    htmls.resize(urls.size());
+    tables.resize(urls.size());
+    replace = false;
+    styleElement = false;
+
 }
 
 int VertretungsBoy::plan::update(){
     for(size_t i = 0; i<urls.size(); ++i){
-        if(!download(i)) return 1;
+        if(!download(i))
+            return 1;
+        tables[i] = parser(htmls[i]);
+
+        std::cout << dates[i] << std::endl << std::endl;
+
+        for(size_t j = 0; j < tables[i].size(); ++j) {
+            for (size_t k = 0; k < tables[i][j].size(); ++k) {
+                std::cout << tables[i][j][k] << std::endl;
+            }
+
+            std::cout << std::endl;
+        }
     }
+
+
 
     return 0;
 }
@@ -57,9 +84,9 @@ bool VertretungsBoy::plan::download(size_t urlsIndex) {
         return  1;
 
     curl_easy_setopt(handle, CURLOPT_URL, urls[urlsIndex].c_str());
-    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writer);
+    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriter);
 
-    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &curlDownloads[urlsIndex]);
+    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &htmls[urlsIndex]);
 
     CURLcode res = curl_easy_perform(handle);
     if(res != CURLE_OK)
@@ -70,13 +97,109 @@ bool VertretungsBoy::plan::download(size_t urlsIndex) {
     return true;
 }
 
-size_t VertretungsBoy::plan::writer(char *ptr, size_t size, size_t nmemb, void *userdata) {
-    ((std::string *) userdata) -> append(ptr, 0, size * nmemb);
-    return size * nmemb;
+size_t VertretungsBoy::plan::curlWriter(char *ptr, size_t size, size_t n, void *userData) {
+    ((std::string *) userData) -> append(ptr, 0, size * n);
+    return size * n;
 }
 
-bool VertretungsBoy::plan::parser(bool tag, size_t curlDownloadsIndex) {
+std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::string &html) {
+    bool row = false, data = false, date = false;
+    std::string dataBuffer;
+    std::vector<std::string> rowBuffer;
+    std::vector<std::vector<std::string>> table;
 
+    for(size_t i = 0; i < html.size(); ++i) {
+        if(html[i] == '<') {
+            std::string element = html.substr(i+1, 3);
+            if(!row) {
+                if(html.substr(i+1, 14) == "tr class='list") {
+                    i = i + 17;
+                    row = true;
+                } else if (element == "div") {
+                    i = i + 20;
+                    date = true;
+                } else if (element == "/di") {
+                    dates.push_back(dataBuffer);
+                    dataBuffer = "";
+                    date = false;
+                }
 
-    return true;
+                i = i + 3;
+            } else {
+                if(!data) {
+                    if(element == "/tr") {
+                        if(!rowBuffer.empty()) {
+                            table.push_back(rowBuffer);
+                            rowBuffer.clear();
+                        }
+                        i = i + 4;
+                        row = false;
+                    } else if (element == "td ") {
+                        data = true;
+                        i = i + 31;
+                        while (html[i] != '>')
+                            i++;
+                        i++;
+                    }
+                } else {
+                    if (element == "/td") {
+                        rowBuffer.push_back(dataBuffer);
+                        dataBuffer = "";
+                        i = i + 4;
+                        data = false;
+                        replace = false;
+                        replaceCounter = 0;
+                    }
+                }
+            }
+        }
+
+        if(data||date)
+            tableWriter(toUTF8(html[i]), dataBuffer);
+    }
+
+    return table;
+}
+
+void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) {
+    if(tokens == "<")
+        styleElement = true;
+    if(!styleElement && tokens == "?") {
+        output = " statt " + output;
+        replace = true;
+        return;
+    }
+    if(!styleElement) {
+        if (!replace) {
+            output += tokens;
+        }
+        else {
+            output.insert(replaceCounter, tokens);
+            replaceCounter++;
+        }
+    }
+    if (styleElement && tokens == ">")
+        styleElement = false;
+}
+
+std::string VertretungsBoy::plan::toUTF8(char token) {
+    if (token == '\xD6') {
+        return "Ö";
+    } else if (token == '\xF6') {
+        return "ö";
+    } else if (token == '\xC4') {
+        return "Ä";
+    } else if (token == '\xE4') {
+        return "ä";
+    } else if (token == '\xDC') {
+        return "Ü";
+    } else if (token == '\xFC') {
+        return "ü";
+    } else if (token == '\xDF') {
+        return "ß";
+    } else {
+        std::string strToken;
+        strToken += token;
+        return strToken;
+    }
 }
