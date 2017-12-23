@@ -4,7 +4,6 @@
 
 #include "plan.hpp"
 #include <curl/curl.h>
-#include <iostream>
 
 bool VertretungsBoy::plan::curlGlobalInit = false;
 
@@ -19,11 +18,10 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : 
     replace = false;
     styleElement = false;
 
-
     /*  TODO: Check if data-bank exist
      *
      *  true: load old
-     *  false: make nothing until the next update
+     *  false: create at the next update
      */
 }
 
@@ -37,8 +35,6 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls) : urls(urls) {
     tables.resize(urls.size());
     replace = false;
     styleElement = false;
-
-
 }
 
 VertretungsBoy::plan::plan(std::string url) {
@@ -53,7 +49,6 @@ VertretungsBoy::plan::plan(std::string url) {
     tables.resize(urls.size());
     replace = false;
     styleElement = false;
-
 }
 
 int VertretungsBoy::plan::update(){
@@ -61,19 +56,7 @@ int VertretungsBoy::plan::update(){
         if(!download(i))
             return 1;
         tables[i] = parser(htmls[i]);
-
-        std::cout << dates[i] << std::endl << std::endl;
-
-        for(size_t j = 0; j < tables[i].size(); ++j) {
-            for (size_t k = 0; k < tables[i][j].size(); ++k) {
-                std::cout << tables[i][j][k] << std::endl;
-            }
-
-            std::cout << std::endl;
-        }
     }
-
-
 
     return 0;
 }
@@ -85,7 +68,6 @@ bool VertretungsBoy::plan::download(size_t urlsIndex) {
 
     curl_easy_setopt(handle, CURLOPT_URL, urls[urlsIndex].c_str());
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriter);
-
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &htmls[urlsIndex]);
 
     CURLcode res = curl_easy_perform(handle);
@@ -123,7 +105,6 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
                     dataBuffer = "";
                     date = false;
                 }
-
                 i = i + 3;
             } else {
                 if(!data) {
@@ -164,11 +145,13 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
 void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) {
     if(tokens == "<")
         styleElement = true;
+
     if(!styleElement && tokens == "?") {
         output = " statt " + output;
         replace = true;
         return;
     }
+
     if(!styleElement) {
         if (!replace) {
             output += tokens;
@@ -178,26 +161,27 @@ void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) 
             replaceCounter++;
         }
     }
+
     if (styleElement && tokens == ">")
         styleElement = false;
 }
 
 std::string VertretungsBoy::plan::toUTF8(char token) {
-    if (token == '\xD6') {
+    if (token == '\xD6')
         return "Ö";
-    } else if (token == '\xF6') {
+    else if (token == '\xF6')
         return "ö";
-    } else if (token == '\xC4') {
+    else if (token == '\xC4')
         return "Ä";
-    } else if (token == '\xE4') {
+    else if (token == '\xE4')
         return "ä";
-    } else if (token == '\xDC') {
+    else if (token == '\xDC')
         return "Ü";
-    } else if (token == '\xFC') {
+    else if (token == '\xFC')
         return "ü";
-    } else if (token == '\xDF') {
+    else if (token == '\xDF')
         return "ß";
-    } else {
+    else {
         std::string strToken;
         strToken += token;
         return strToken;
