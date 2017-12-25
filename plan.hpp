@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <sqlite3.h>
 
 namespace VertretungsBoy {
 
@@ -14,8 +15,7 @@ namespace VertretungsBoy {
 
     public:
         plan(std::vector<std::string> urls, std::string dbPath);
-        plan(std::vector<std::string> urls);
-        plan(std::string url);
+
         int update();
 
         static bool curlGlobalInit;
@@ -31,11 +31,13 @@ namespace VertretungsBoy {
         std::vector<std::vector<std::string>> parser(const std::string &html);
         std::string toUTF8(char token);
         void tableWriter(std::string tokens, std::string &output);
-        bool replace, styleElement;
+        bool replace = false, styleElement = false;
         size_t replaceCounter = 0;
 
 
         std::string dbPath;
+        sqlite3 *db = nullptr;
+        int writeTablesToDatabase();
     };
 };
 

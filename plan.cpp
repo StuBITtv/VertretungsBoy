@@ -7,48 +7,57 @@
 
 bool VertretungsBoy::plan::curlGlobalInit = false;
 
+static int pushToTable(void *table, int argc, char **argv, char **notUsed) {
+    std::vector<std::string> row;
+    for(size_t i = 0; i < argc; i++) {
+        std::string toCpp(argv[i]);
+        row.push_back(toCpp);
+    }
+
+    static_cast<std::vector<std::vector<std::string>> *>(table)->push_back(row);
+    return 0;
+}
+
 VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : urls(urls), dbPath(dbPath) {
-    if(!VertretungsBoy::plan::curlGlobalInit){
+    if(!curlGlobalInit){
         curl_global_init(CURL_GLOBAL_DEFAULT);
-        VertretungsBoy::plan::curlGlobalInit = true;
+        curlGlobalInit = true;
     }
 
     htmls.resize(urls.size());
     tables.resize(urls.size());
-    replace = false;
-    styleElement = false;
 
-    /*  TODO: Check if data-bank exist
-     *
-     *  true: load old
-     *  false: create at the next update
-     */
-}
+    int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+    if(!SQLiteReturn) {
+        for (size_t i = 0; i < urls.size(); ++i) {
+            std::vector<std::vector<std::string>> table;
+            std::string sqlQuery = "SELECT count(*) "
+                                   "FROM sqlite_master "
+                                   "WHERE type = 'table' "
+                                   "AND name = 'backupPlan"  + std::to_string(i) + "';";
+            SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), pushToTable, &table, nullptr);
+            if (SQLiteReturn != SQLITE_OK) {
+                sqlite3_close(db);
+                throw SQLiteReturn;
+            }
 
-VertretungsBoy::plan::plan(std::vector<std::string> urls) : urls(urls) {
-    if (!VertretungsBoy::plan::curlGlobalInit) {
-        curl_global_init(CURL_GLOBAL_DEFAULT);
-        VertretungsBoy::plan::curlGlobalInit = true;
+            if(std::stoi(table[0][0])) {
+                sqlQuery = "SELECT *"
+                           "FROM backupPlan" + std::to_string(i) + ";";
+                SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), pushToTable, &table, nullptr);
+                if (SQLiteReturn != SQLITE_OK) {
+                    sqlite3_close(db);
+                    throw SQLiteReturn;
+                }
+
+                tables.push_back(table);
+            }
+        }
+    } else {
+        sqlite3_close(db);
+        throw SQLiteReturn;
     }
-
-    htmls.resize(urls.size());
-    tables.resize(urls.size());
-    replace = false;
-    styleElement = false;
-}
-
-VertretungsBoy::plan::plan(std::string url) {
-    urls.push_back(url);
-
-    if (!VertretungsBoy::plan::curlGlobalInit) {
-        curl_global_init(CURL_GLOBAL_DEFAULT);
-        VertretungsBoy::plan::curlGlobalInit = true;
-    }
-
-    htmls.resize(urls.size());
-    tables.resize(urls.size());
-    replace = false;
-    styleElement = false;
+    sqlite3_close(db);
 }
 
 int VertretungsBoy::plan::update(){
@@ -58,7 +67,7 @@ int VertretungsBoy::plan::update(){
         tables[i] = parser(htmls[i]);
     }
 
-    return 0;
+    return writeTablesToDatabase();
 }
 
 bool VertretungsBoy::plan::download(size_t urlsIndex) {
@@ -186,4 +195,39 @@ std::string VertretungsBoy::plan::toUTF8(char token) {
         strToken += token;
         return strToken;
     }
+}
+
+int VertretungsBoy::plan::writeTablesToDatabase() {
+    for (size_t i = 0; i < tables.size(); i++) {
+        std::string sqlQuery = "DROP TABLE IF EXISTS backupPlan" + std::to_string(i) + ";"
+
+                               "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(i) + "` ("
+                               "`classes` TEXT,"
+                               "`lessons` TEXT,"
+                               "`type` TEXT,"
+                               "`subjects` TEXT,"
+                               "`rooms` TEXT,"
+                               "`text` TEXT"
+                               ");"
+
+                               "INSERT INTO `backupPlan" + std::to_string(i) + "`(`classes`,`lessons`,`type`,`subjects`,`rooms`,`text`) VALUES ";
+
+        for (size_t j = 0; j < tables[i].size(); j++) {
+            sqlQuery += "('" + tables[i][j][0] + "', '" + tables[i][j][1] + "','"
+                            + tables[i][j][2] + "', '" + tables[i][j][3] + "','"
+                            + tables[i][j][4] + "', '" + tables[i][j][5] + "')";
+            if(j + 1 != tables[i].size())
+                sqlQuery += ", ";
+            else
+                sqlQuery += ";";
+
+        }
+
+        sqlite3_open(dbPath.c_str(), &db);
+        int SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
+        sqlite3_close(db);
+        if(SQLiteReturn != SQLITE_OK)
+            return SQLiteReturn;
+    }
+    return 0;
 }
