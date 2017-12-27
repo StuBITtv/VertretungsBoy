@@ -7,17 +7,6 @@
 
 bool VertretungsBoy::plan::curlGlobalInit = false;
 
-static int pushToTable(void *table, int argc, char **argv, char **notUsed) {
-    std::vector<std::string> row;
-    for(size_t i = 0; i < argc; i++) {
-        std::string toCpp(argv[i]);
-        row.push_back(toCpp);
-    }
-
-    static_cast<std::vector<std::vector<std::string>> *>(table)->push_back(row);
-    return 0;
-}
-
 VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : urls(urls), dbPath(dbPath) {
     if(!curlGlobalInit){
         curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -25,49 +14,23 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : 
     }
 
     htmls.resize(urls.size());
-    tables.resize(urls.size());
 
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
-    if(!SQLiteReturn) {
-        for (size_t i = 0; i < urls.size(); ++i) {
-            std::vector<std::vector<std::string>> table;
-            std::string sqlQuery = "SELECT count(*) "
-                                   "FROM sqlite_master "
-                                   "WHERE type = 'table' "
-                                   "AND name = 'backupPlan"  + std::to_string(i) + "';";
-            SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), pushToTable, &table, nullptr);
-            if (SQLiteReturn != SQLITE_OK) {
-                sqlite3_close(db);
-                throw SQLiteReturn;
-            }
-
-            if(std::stoi(table[0][0])) {
-                sqlQuery = "SELECT *"
-                           "FROM backupPlan" + std::to_string(i) + ";";
-                SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), pushToTable, &table, nullptr);
-                if (SQLiteReturn != SQLITE_OK) {
-                    sqlite3_close(db);
-                    throw SQLiteReturn;
-                }
-
-                tables.push_back(table);
-            }
-        }
-    } else {
-        sqlite3_close(db);
-        throw SQLiteReturn;
-    }
     sqlite3_close(db);
+    if(SQLiteReturn != SQLITE_OK)
+        throw SQLiteReturn;
 }
 
 int VertretungsBoy::plan::update(){
     for(size_t i = 0; i<urls.size(); ++i){
         if(!download(i))
             return 1;
-        tables[i] = parser(htmls[i]);
+        int rc = writeTableToDB(i, parser(htmls[i]));
+        if(rc)
+            return rc;
     }
 
-    return writeTablesToDatabase();
+    return 0;
 }
 
 bool VertretungsBoy::plan::download(size_t urlsIndex) {
@@ -197,37 +160,36 @@ std::string VertretungsBoy::plan::toUTF8(char token) {
     }
 }
 
-int VertretungsBoy::plan::writeTablesToDatabase() {
-    for (size_t i = 0; i < tables.size(); i++) {
-        std::string sqlQuery = "DROP TABLE IF EXISTS backupPlan" + std::to_string(i) + ";"
+int VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table) {
+    std::string sqlQuery = "DROP TABLE IF EXISTS backupPlan" + std::to_string(tableNumber) + ";"
 
-                               "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(i) + "` ("
-                               "`classes` TEXT,"
-                               "`lessons` TEXT,"
-                               "`type` TEXT,"
-                               "`subjects` TEXT,"
-                               "`rooms` TEXT,"
-                               "`text` TEXT"
-                               ");"
+                           "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(tableNumber) + "` ("
+                           "`classes` TEXT,"
+                           "`lessons` TEXT,"
+                           "`type` TEXT,"
+                           "`subjects` TEXT,"
+                           "`rooms` TEXT,"
+                           "`text` TEXT"
+                           ");"
 
-                               "INSERT INTO `backupPlan" + std::to_string(i) + "`(`classes`,`lessons`,`type`,`subjects`,`rooms`,`text`) VALUES ";
+                           "INSERT INTO `backupPlan" + std::to_string(tableNumber) +
+                           "`(`classes`,`lessons`,`type`,`subjects`,`rooms`,`text`) VALUES ";
 
-        for (size_t j = 0; j < tables[i].size(); j++) {
-            sqlQuery += "('" + tables[i][j][0] + "', '" + tables[i][j][1] + "','"
-                            + tables[i][j][2] + "', '" + tables[i][j][3] + "','"
-                            + tables[i][j][4] + "', '" + tables[i][j][5] + "')";
-            if(j + 1 != tables[i].size())
-                sqlQuery += ", ";
-            else
-                sqlQuery += ";";
-
-        }
-
-        sqlite3_open(dbPath.c_str(), &db);
-        int SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
-        sqlite3_close(db);
-        if(SQLiteReturn != SQLITE_OK)
-            return SQLiteReturn;
+    for (size_t j = 0; j < table.size(); j++) {
+        sqlQuery += "('" + table[j][0] + "', '" + table[j][1] + "','"
+                    + table[j][2] + "', '" + table[j][3] + "','"
+                    + table[j][4] + "', '" + table[j][5] + "')";
+        if (j + 1 != table.size())
+            sqlQuery += ", ";
+        else
+            sqlQuery += ";";
     }
+
+    sqlite3_open(dbPath.c_str(), &db);
+    int SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
+    sqlite3_close(db);
+    if(SQLiteReturn != SQLITE_OK)
+        return SQLiteReturn;
+
     return 0;
 }

@@ -27,7 +27,7 @@ namespace VertretungsBoy {
         static size_t curlWriter(char *ptr, size_t size, size_t n, void *userData);
 
         std::vector<std::string> dates;
-        std::vector<std::vector<std::vector<std::string>>> tables;
+
         std::vector<std::vector<std::string>> parser(const std::string &html);
         std::string toUTF8(char token);
         void tableWriter(std::string tokens, std::string &output);
@@ -37,7 +37,7 @@ namespace VertretungsBoy {
 
         std::string dbPath;
         sqlite3 *db = nullptr;
-        int writeTablesToDatabase();
+        int writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table);
     };
 };
 
