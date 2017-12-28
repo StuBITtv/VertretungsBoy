@@ -20,6 +20,7 @@ namespace VertretungsBoy {
         std::vector<std::string> getDates() {
             return dates;
         }
+        std::vector<std::vector<std::string>> getEntries(size_t tableNumber, std::string searchValue);
 
         static bool curlGlobalInit;
 

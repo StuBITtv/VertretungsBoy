@@ -8,7 +8,7 @@
 bool VertretungsBoy::plan::curlGlobalInit = false;
 
 VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : urls(urls), dbPath(dbPath) {
-    if(!curlGlobalInit){
+    if (!curlGlobalInit) {
         curl_global_init(CURL_GLOBAL_DEFAULT);
         curlGlobalInit = true;
     }
@@ -17,16 +17,16 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : 
 
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
     sqlite3_close(db);
-    if(SQLiteReturn != SQLITE_OK)
+    if (SQLiteReturn != SQLITE_OK)
         throw SQLiteReturn;
 }
 
-int VertretungsBoy::plan::update(){
-    for(size_t i = 0; i<urls.size(); ++i){
-        if(!download(i))
+int VertretungsBoy::plan::update() {
+    for (size_t i = 0; i < urls.size(); ++i) {
+        if (!download(i))
             return 1;
         int rc = writeTableToDB(i, parser(htmls[i]));
-        if(rc)
+        if (rc)
             return rc;
     }
 
@@ -35,15 +35,15 @@ int VertretungsBoy::plan::update(){
 
 bool VertretungsBoy::plan::download(size_t urlsIndex) {
     CURL *handle = curl_easy_init();
-    if(handle == nullptr)
-        return  1;
+    if (handle == nullptr)
+        return 1;
 
     curl_easy_setopt(handle, CURLOPT_URL, urls[urlsIndex].c_str());
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriter);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &htmls[urlsIndex]);
 
     CURLcode res = curl_easy_perform(handle);
-    if(res != CURLE_OK)
+    if (res != CURLE_OK)
         return false;
 
     curl_easy_cleanup(handle);
@@ -52,7 +52,7 @@ bool VertretungsBoy::plan::download(size_t urlsIndex) {
 }
 
 size_t VertretungsBoy::plan::curlWriter(char *ptr, size_t size, size_t n, void *userData) {
-    ((std::string *) userData) -> append(ptr, 0, size * n);
+    ((std::string *) userData)->append(ptr, 0, size * n);
     return size * n;
 }
 
@@ -62,11 +62,11 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
     std::vector<std::string> rowBuffer;
     std::vector<std::vector<std::string>> table;
 
-    for(size_t i = 0; i < html.size(); ++i) {
-        if(html[i] == '<') {
-            std::string element = html.substr(i+1, 3);
-            if(!row) {
-                if(html.substr(i+1, 14) == "tr class='list") {
+    for (size_t i = 0; i < html.size(); ++i) {
+        if (html[i] == '<') {
+            std::string element = html.substr(i + 1, 3);
+            if (!row) {
+                if (html.substr(i + 1, 14) == "tr class='list") {
                     i = i + 17;
                     row = true;
                 } else if (element == "div") {
@@ -79,9 +79,9 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
                 }
                 i = i + 3;
             } else {
-                if(!data) {
-                    if(element == "/tr") {
-                        if(!rowBuffer.empty()) {
+                if (!data) {
+                    if (element == "/tr") {
+                        if (!rowBuffer.empty()) {
                             table.push_back(rowBuffer);
                             rowBuffer.clear();
                         }
@@ -107,7 +107,7 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
             }
         }
 
-        if(data||date)
+        if (data || date)
             tableWriter(toUTF8(html[i]), dataBuffer);
     }
 
@@ -115,20 +115,19 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
 }
 
 void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) {
-    if(tokens == "<")
+    if (tokens == "<")
         styleElement = true;
 
-    if(!styleElement && tokens == "?") {
+    if (!styleElement && tokens == "?") {
         output = " statt " + output;
         replace = true;
         return;
     }
 
-    if(!styleElement) {
+    if (!styleElement) {
         if (!replace) {
             output += tokens;
-        }
-        else {
+        } else {
             output.insert(replaceCounter, tokens);
             replaceCounter++;
         }
@@ -188,8 +187,49 @@ int VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::ve
     sqlite3_open(dbPath.c_str(), &db);
     int SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
     sqlite3_close(db);
-    if(SQLiteReturn != SQLITE_OK)
+    if (SQLiteReturn != SQLITE_OK)
         return SQLiteReturn;
 
     return 0;
+}
+
+std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t tableNumber, std::string searchValue) {
+    if (urls.size() - 1 < tableNumber) {
+        throw -1;
+    }
+
+    searchValue = sqlite3_mprintf("%Q", searchValue.c_str());
+    searchValue.erase(searchValue.begin(), searchValue.begin() + 1);
+    searchValue.erase(searchValue.end() - 1, searchValue.end());
+
+    std::string sqlQuery = "SELECT * "
+                           "FROM backupPlan" + std::to_string(tableNumber) + " "
+                           "WHERE classes LIKE '%" + searchValue + "%'";
+
+    sqlite3_open(dbPath.c_str(), &db);
+    sqlite3_stmt *res = nullptr;
+
+    int SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
+    if (SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw SQLiteReturn;
+    }
+
+    std::vector<std::vector<std::string>> table;
+
+    do {
+        SQLiteReturn = sqlite3_step(res);
+        if (SQLiteReturn == SQLITE_ROW) {
+            std::vector<std::string> row(6);
+            for (auto i = 0; i < 6; i++) {
+                row[i] = reinterpret_cast<const char *>(sqlite3_column_text(res, i));
+            }
+
+            table.push_back(row);
+        }
+    } while (SQLiteReturn == SQLITE_ROW);
+
+    sqlite3_close(db);
+
+    return table;
 }
