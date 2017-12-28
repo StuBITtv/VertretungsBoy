@@ -7,6 +7,10 @@ int main() {
     VertretungsBoy::plan test(urls, ".planBackup.db");
 
     test.update();
+    std::vector<std::string> dates = test.getDates();
+    for(int i = 0; i < dates.size(); i++) {
+        std::cout << dates[i] << std::endl;
+    }
 
     return  0;
 }

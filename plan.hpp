@@ -17,6 +17,9 @@ namespace VertretungsBoy {
         plan(std::vector<std::string> urls, std::string dbPath);
 
         int update();
+        std::vector<std::string> getDates() {
+            return dates;
+        }
 
         static bool curlGlobalInit;
 
