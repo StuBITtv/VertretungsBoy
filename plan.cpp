@@ -198,18 +198,37 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
         throw -1;
     }
 
+    sqlite3_open(dbPath.c_str(), &db);
+    sqlite3_stmt *res = nullptr;
+
+    std::string sqlQuery = "SELECT count(*) "
+                           "FROM sqlite_master "
+                           "WHERE type='table' AND name='backupPlan" + std::to_string(tableNumber) +"';";
+
+    int SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
+    if (SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw SQLiteReturn;
+    }
+
+    sqlite3_step(res);
+    if(!sqlite3_column_int(res, 0)) {
+        sqlite3_finalize(res);
+        sqlite3_close(db);
+        update();
+        sqlite3_open(dbPath.c_str(), &db);
+    }
+
     searchValue = sqlite3_mprintf("%Q", searchValue.c_str());
     searchValue.erase(searchValue.begin(), searchValue.begin() + 1);
     searchValue.erase(searchValue.end() - 1, searchValue.end());
 
-    std::string sqlQuery = "SELECT * "
-                           "FROM backupPlan" + std::to_string(tableNumber) + " "
-                           "WHERE classes LIKE '%" + searchValue + "%'";
+    sqlQuery = "SELECT * "
+               "FROM backupPlan" + std::to_string(tableNumber) + " "
+               "WHERE classes LIKE '%" + searchValue + "%'";
 
-    sqlite3_open(dbPath.c_str(), &db);
-    sqlite3_stmt *res = nullptr;
 
-    int SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
+    SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
         throw SQLiteReturn;
@@ -229,6 +248,7 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
         }
     } while (SQLiteReturn == SQLITE_ROW);
 
+    sqlite3_finalize(res);
     sqlite3_close(db);
 
     return table;
