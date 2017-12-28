@@ -14,9 +14,9 @@ namespace VertretungsBoy {
     class plan {
 
     public:
-        plan(std::vector<std::string> urls, std::string dbPath);
+        plan(std::vector<std::string> urls, long long int timeout, std::string dbPath);
 
-        int update();
+        void update();
         std::vector<std::string> getDates() {
             return dates;
         }
@@ -25,9 +25,10 @@ namespace VertretungsBoy {
         static bool curlGlobalInit;
 
     private:
+        long long int timeout;
         std::vector<std::string> htmls;
         std::vector<std::string> urls;
-        bool download(size_t urlsIndex);
+        void download(size_t urlsIndex);
         static size_t curlWriter(char *ptr, size_t size, size_t n, void *userData);
 
         std::vector<std::string> dates;
@@ -41,7 +42,7 @@ namespace VertretungsBoy {
 
         std::string dbPath;
         sqlite3 *db = nullptr;
-        int writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table);
+        void writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table);
     };
 };
 

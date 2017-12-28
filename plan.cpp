@@ -7,7 +7,7 @@
 
 bool VertretungsBoy::plan::curlGlobalInit = false;
 
-VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : urls(urls), dbPath(dbPath) {
+VertretungsBoy::plan::plan(std::vector<std::string> urls, long long int timeout, std::string dbPath) : urls(urls), timeout(timeout), dbPath(dbPath) {
     if (!curlGlobalInit) {
         curl_global_init(CURL_GLOBAL_DEFAULT);
         curlGlobalInit = true;
@@ -18,37 +18,31 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath) : 
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
     sqlite3_close(db);
     if (SQLiteReturn != SQLITE_OK)
-        throw SQLiteReturn;
+        throw std::string (sqlite3_errmsg(db));
 }
 
-int VertretungsBoy::plan::update() {
+void VertretungsBoy::plan::update() {
     for (size_t i = 0; i < urls.size(); ++i) {
-        if (!download(i))
-            return 1;
-        int rc = writeTableToDB(i, parser(htmls[i]));
-        if (rc)
-            return rc;
+        download(i);
+        writeTableToDB(i, parser(htmls[i]));
     }
-
-    return 0;
 }
 
-bool VertretungsBoy::plan::download(size_t urlsIndex) {
+void VertretungsBoy::plan::download(size_t urlsIndex) {
     CURL *handle = curl_easy_init();
     if (handle == nullptr)
-        return 1;
+        throw "Failed to init curl handle";
 
     curl_easy_setopt(handle, CURLOPT_URL, urls[urlsIndex].c_str());
+    curl_easy_setopt(handle, CURLOPT_TIMEOUT, timeout);
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriter);
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &htmls[urlsIndex]);
 
     CURLcode res = curl_easy_perform(handle);
     if (res != CURLE_OK)
-        return false;
+        throw "Failed to perform download";
 
     curl_easy_cleanup(handle);
-
-    return true;
 }
 
 size_t VertretungsBoy::plan::curlWriter(char *ptr, size_t size, size_t n, void *userData) {
@@ -159,7 +153,7 @@ std::string VertretungsBoy::plan::toUTF8(char token) {
     }
 }
 
-int VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table) {
+void VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table) {
     std::string sqlQuery = "DROP TABLE IF EXISTS backupPlan" + std::to_string(tableNumber) + ";"
 
                            "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(tableNumber) + "` ("
@@ -188,14 +182,12 @@ int VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::ve
     int SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
     sqlite3_close(db);
     if (SQLiteReturn != SQLITE_OK)
-        return SQLiteReturn;
-
-    return 0;
+        throw std::string (sqlite3_errmsg(db));
 }
 
 std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t tableNumber, std::string searchValue) {
     if (urls.size() - 1 < tableNumber) {
-        throw -1;
+        throw std::string("Not a valide table number");
     }
 
     sqlite3_open(dbPath.c_str(), &db);
@@ -208,7 +200,7 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
     int SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw SQLiteReturn;
+        throw std::string (sqlite3_errmsg(db));
     }
 
     sqlite3_step(res);
@@ -216,7 +208,11 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
         sqlite3_finalize(res);
         sqlite3_close(db);
         update();
-        sqlite3_open(dbPath.c_str(), &db);
+        SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+        if (SQLiteReturn != SQLITE_OK) {
+            sqlite3_close(db);
+            throw std::string (sqlite3_errmsg(db));
+        }
     }
 
     searchValue = sqlite3_mprintf("%Q", searchValue.c_str());
@@ -231,8 +227,9 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
     SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw SQLiteReturn;
+        throw std::string (sqlite3_errmsg(db));
     }
+
 
     std::vector<std::vector<std::string>> table;
 
