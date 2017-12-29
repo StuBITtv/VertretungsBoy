@@ -209,7 +209,7 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::v
 
 std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t tableNumber, std::string searchValue) {
     if (urls.size() - 1 < tableNumber) {
-        throw std::string("Not a valide table number");
+        throw std::string("Not a valid table number");
     }
 
     if(!checkTableExistence("backupPlan" + std::to_string(tableNumber))) {
