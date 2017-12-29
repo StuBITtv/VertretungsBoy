@@ -4,10 +4,12 @@
 
 #include "plan.hpp"
 #include <curl/curl.h>
+#include <ctime>
 
 bool VertretungsBoy::plan::curlGlobalInit = false;
 
-VertretungsBoy::plan::plan(std::vector<std::string> urls, long long int timeout, std::string dbPath) : urls(urls), timeout(timeout), dbPath(dbPath) {
+VertretungsBoy::plan::plan(std::vector<std::string> urls, long long int timeout, std::string dbPath, bool skipOutdated)
+        : urls(urls), timeout(timeout), dbPath(dbPath), skipOutdated(skipOutdated) {
     if (!curlGlobalInit) {
         curl_global_init(CURL_GLOBAL_DEFAULT);
         curlGlobalInit = true;
@@ -73,6 +75,12 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
                     i = i + 20;
                     date = true;
                 } else if (element == "/di") {
+                    if(skipOutdated) {
+                        if(!upToDate(dataBuffer)) {
+                            dates.push_back("OUTDATED");
+                            return table;
+                        }
+                    }
                     dates.push_back(dataBuffer);
                     dataBuffer = "";
                     date = false;
@@ -177,19 +185,21 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::v
                            "`subjects` TEXT,"
                            "`rooms` TEXT,"
                            "`text` TEXT"
-                           ");"
+                           ");";
 
-                           "INSERT INTO `backupPlan" + std::to_string(tableNumber) +
-                           "`(`classes`,`lessons`,`type`,`subjects`,`rooms`,`text`) VALUES ";
+    if(!table.empty()) {
+        sqlQuery += "INSERT INTO `backupPlan" + std::to_string(tableNumber) +
+                    "`(`classes`,`lessons`,`type`,`subjects`,`rooms`,`text`) VALUES ";
 
-    for (size_t j = 0; j < table.size(); j++) {
-        sqlQuery += "('" + table[j][0] + "', '" + table[j][1] + "','"
-                    + table[j][2] + "', '" + table[j][3] + "','"
-                    + table[j][4] + "', '" + table[j][5] + "')";
-        if (j + 1 != table.size()) {
-            sqlQuery += ", ";
-        } else {
-            sqlQuery += ";";
+        for (size_t j = 0; j < table.size(); j++) {
+            sqlQuery += "('" + table[j][0] + "', '" + table[j][1] + "','"
+                        + table[j][2] + "', '" + table[j][3] + "','"
+                        + table[j][4] + "', '" + table[j][5] + "')";
+            if (j + 1 != table.size()) {
+                sqlQuery += ", ";
+            } else {
+                sqlQuery += ";";
+            }
         }
     }
 
@@ -210,6 +220,14 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::v
 std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t tableNumber, std::string searchValue) {
     if (urls.size() - 1 < tableNumber) {
         throw std::string("Not a valid table number");
+    }
+
+    if(dates.empty()) {
+        getDates();
+    }
+
+    if(dates[tableNumber] == "OUTDATED") {
+        return std::vector<std::vector<std::string>> ();
     }
 
     if(!checkTableExistence("backupPlan" + std::to_string(tableNumber))) {
@@ -315,7 +333,16 @@ std::vector<std::string> VertretungsBoy::plan::getDates() {
             do {
                 SQLiteReturn = sqlite3_step(res);
                 if (SQLiteReturn == SQLITE_ROW) {
-                    dates.push_back(reinterpret_cast<const char *>(sqlite3_column_text(res, 0)));
+                    std::string date = reinterpret_cast<const char *>(sqlite3_column_text(res, 0));
+                    if(skipOutdated) {
+                        if(upToDate(date)) {
+                            dates.push_back(date);
+                        } else {
+                            dates.push_back("OUTDATED");
+                        }
+                    } else {
+                        dates.push_back(date);
+                    }
                 }
             } while (SQLiteReturn == SQLITE_ROW);
 
@@ -353,4 +380,27 @@ bool VertretungsBoy::plan::checkTableExistence(std::string tableName) {
     sqlite3_close(db);
 
     return boolean != 0;
+}
+
+bool VertretungsBoy::plan::upToDate(const std::string &date) {
+
+    if(date == "OUTDATED") {
+        return false;
+    }
+
+    time_t t = time(0);
+    struct tm * now = localtime(&t);
+
+    size_t firstDot = date.find(".") + 1;
+    if(now->tm_mday > std::stoi(date.substr(0, firstDot - 1))) {
+        size_t lastDot = date.find_last_of(".") + 1;
+        if(now->tm_mon + 1 < std::stoi(date.substr(firstDot, lastDot - firstDot))) {
+            return true;
+        } else if(now->tm_year + 1900 < std::stoi(date.substr(lastDot, date.find(" ") - lastDot))) {
+            return true;
+        }
+        return false;
+    }
+
+    return true;
 }

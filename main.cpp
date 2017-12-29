@@ -5,10 +5,10 @@ int main() {
 
 
     std::vector<std::string> urls { "dbg-metzingen.de/vertretungsplan/tage/subst_001.htm", "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm" };
-    VertretungsBoy::plan test(urls, 10, ".planBackup.db");
+    VertretungsBoy::plan test(urls, 10, ".planBackup.db", true);
 
+    test.update();
     std::vector<std::string> dates = test.getDates();
-
 
     for(size_t k = 0; k < urls.size(); k ++) {
 

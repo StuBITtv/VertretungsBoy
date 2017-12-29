@@ -14,7 +14,7 @@ namespace VertretungsBoy {
     class plan {
 
     public:
-        plan(std::vector<std::string> urls, long long int timeout, std::string dbPath);
+        plan(std::vector<std::string> urls, long long int timeout, std::string dbPath, bool skipOutdated);
 
         void update();
         std::vector<std::string> getDates();
@@ -30,6 +30,8 @@ namespace VertretungsBoy {
         static size_t curlWriter(char *ptr, size_t size, size_t n, void *userData);
 
         std::vector<std::string> dates;
+        bool skipOutdated;
+        bool upToDate(const std::string &date);
 
         std::vector<std::vector<std::string>> parser(const std::string &html);
         std::string toUTF8(char token);
