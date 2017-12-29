@@ -17,9 +17,7 @@ namespace VertretungsBoy {
         plan(std::vector<std::string> urls, long long int timeout, std::string dbPath);
 
         void update();
-        std::vector<std::string> getDates() {
-            return dates;
-        }
+        std::vector<std::string> getDates();
         std::vector<std::vector<std::string>> getEntries(size_t tableNumber, std::string searchValue);
 
         static bool curlGlobalInit;
@@ -41,8 +39,9 @@ namespace VertretungsBoy {
 
 
         std::string dbPath;
-        sqlite3 *db = nullptr;
         void writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table);
+        void writeDatesToDB();
+        bool checkTableExistence(std::string tableName);
     };
 };
 

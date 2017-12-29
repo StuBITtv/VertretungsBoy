@@ -15,10 +15,12 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls, long long int timeout,
 
     htmls.resize(urls.size());
 
+    sqlite3 *db = nullptr;
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
     sqlite3_close(db);
-    if (SQLiteReturn != SQLITE_OK)
-        throw std::string (sqlite3_errmsg(db));
+    if (SQLiteReturn != SQLITE_OK) {
+        throw std::string(sqlite3_errmsg(db));
+    }
 }
 
 void VertretungsBoy::plan::update() {
@@ -26,12 +28,15 @@ void VertretungsBoy::plan::update() {
         download(i);
         writeTableToDB(i, parser(htmls[i]));
     }
+
+    writeDatesToDB();
 }
 
 void VertretungsBoy::plan::download(size_t urlsIndex) {
     CURL *handle = curl_easy_init();
-    if (handle == nullptr)
+    if (handle == nullptr) {
         throw "Failed to init curl handle";
+    }
 
     curl_easy_setopt(handle, CURLOPT_URL, urls[urlsIndex].c_str());
     curl_easy_setopt(handle, CURLOPT_TIMEOUT, timeout);
@@ -39,8 +44,9 @@ void VertretungsBoy::plan::download(size_t urlsIndex) {
     curl_easy_setopt(handle, CURLOPT_WRITEDATA, &htmls[urlsIndex]);
 
     CURLcode res = curl_easy_perform(handle);
-    if (res != CURLE_OK)
+    if (res != CURLE_OK) {
         throw "Failed to perform download";
+    }
 
     curl_easy_cleanup(handle);
 }
@@ -79,19 +85,24 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
                             table.push_back(rowBuffer);
                             rowBuffer.clear();
                         }
+
                         i = i + 4;
                         row = false;
+
                     } else if (element == "td ") {
                         data = true;
                         i = i + 31;
-                        while (html[i] != '>')
+
+                        while (html[i] != '>') {
                             i++;
+                        }
                         i++;
                     }
                 } else {
                     if (element == "/td") {
                         rowBuffer.push_back(dataBuffer);
                         dataBuffer = "";
+
                         i = i + 4;
                         data = false;
                         replace = false;
@@ -101,16 +112,18 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
             }
         }
 
-        if (data || date)
+        if (data || date) {
             tableWriter(toUTF8(html[i]), dataBuffer);
+        }
     }
 
     return table;
 }
 
 void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) {
-    if (tokens == "<")
+    if (tokens == "<") {
         styleElement = true;
+    }
 
     if (!styleElement && tokens == "?") {
         output = " statt " + output;
@@ -127,26 +140,27 @@ void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) 
         }
     }
 
-    if (styleElement && tokens == ">")
+    if (styleElement && tokens == ">") {
         styleElement = false;
+    }
 }
 
 std::string VertretungsBoy::plan::toUTF8(char token) {
-    if (token == '\xD6')
+    if (token == '\xD6') {
         return "Ö";
-    else if (token == '\xF6')
+    } else if (token == '\xF6') {
         return "ö";
-    else if (token == '\xC4')
+    } else if (token == '\xC4') {
         return "Ä";
-    else if (token == '\xE4')
+    } else if (token == '\xE4') {
         return "ä";
-    else if (token == '\xDC')
+    } else if (token == '\xDC') {
         return "Ü";
-    else if (token == '\xFC')
+    } else if (token == '\xFC') {
         return "ü";
-    else if (token == '\xDF')
+    } else if (token == '\xDF') {
         return "ß";
-    else {
+    } else {
         std::string strToken;
         strToken += token;
         return strToken;
@@ -172,17 +186,25 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableNumber, std::vector<std::v
         sqlQuery += "('" + table[j][0] + "', '" + table[j][1] + "','"
                     + table[j][2] + "', '" + table[j][3] + "','"
                     + table[j][4] + "', '" + table[j][5] + "')";
-        if (j + 1 != table.size())
+        if (j + 1 != table.size()) {
             sqlQuery += ", ";
-        else
+        } else {
             sqlQuery += ";";
+        }
     }
 
-    sqlite3_open(dbPath.c_str(), &db);
-    int SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
-    sqlite3_close(db);
-    if (SQLiteReturn != SQLITE_OK)
+    sqlite3 *db = nullptr;
+    int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+    if (SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
         throw std::string (sqlite3_errmsg(db));
+    }
+
+    SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
+    sqlite3_close(db);
+    if (SQLiteReturn != SQLITE_OK) {
+        throw std::string(sqlite3_errmsg(db));
+    }
 }
 
 std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t tableNumber, std::string searchValue) {
@@ -190,46 +212,31 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
         throw std::string("Not a valide table number");
     }
 
-    sqlite3_open(dbPath.c_str(), &db);
-    sqlite3_stmt *res = nullptr;
-
-    std::string sqlQuery = "SELECT count(*) "
-                           "FROM sqlite_master "
-                           "WHERE type='table' AND name='backupPlan" + std::to_string(tableNumber) +"';";
-
-    int SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
-    if (SQLiteReturn != SQLITE_OK) {
-        sqlite3_close(db);
-        throw std::string (sqlite3_errmsg(db));
-    }
-
-    sqlite3_step(res);
-    if(!sqlite3_column_int(res, 0)) {
-        sqlite3_finalize(res);
-        sqlite3_close(db);
+    if(!checkTableExistence("backupPlan" + std::to_string(tableNumber))) {
         update();
-        SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
-        if (SQLiteReturn != SQLITE_OK) {
-            sqlite3_close(db);
-            throw std::string (sqlite3_errmsg(db));
-        }
     }
 
     searchValue = sqlite3_mprintf("%Q", searchValue.c_str());
     searchValue.erase(searchValue.begin(), searchValue.begin() + 1);
     searchValue.erase(searchValue.end() - 1, searchValue.end());
 
-    sqlQuery = "SELECT * "
-               "FROM backupPlan" + std::to_string(tableNumber) + " "
-               "WHERE classes LIKE '%" + searchValue + "%'";
+    sqlite3_stmt *res;
+    std::string sqlQuery = "SELECT * "
+                           "FROM backupPlan" + std::to_string(tableNumber) + " "
+                           "WHERE classes LIKE '%" + searchValue + "%'";
 
+    sqlite3 *db = nullptr;
+    int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+    if(SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw std::string (sqlite3_errmsg(db));
+    }
 
     SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
         throw std::string (sqlite3_errmsg(db));
     }
-
 
     std::vector<std::vector<std::string>> table;
 
@@ -249,4 +256,101 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
     sqlite3_close(db);
 
     return table;
+}
+
+void VertretungsBoy::plan::writeDatesToDB() {
+    std::string sqlQuery = "DROP TABLE IF EXISTS tableDates; "
+
+                           "CREATE TABLE `tableDates` ("
+                           "`dates`TEXT"
+                           ");"
+
+                           "INSERT INTO tableDates "
+                           "VALUES ";
+
+    for(size_t i = 0; i < dates.size(); i++) {
+        sqlQuery += "('" + dates[i] + "')";
+        if(i + 1 != dates.size()) {
+            sqlQuery += ", ";
+        } else if(i + 1 == dates.size()) {
+            sqlQuery += ";";
+        }
+    }
+
+    sqlite3 *db = nullptr;
+    int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+    if(SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw std::string (sqlite3_errmsg(db));
+    }
+
+    SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
+    sqlite3_close(db);
+    if(SQLiteReturn != SQLITE_OK) {
+        throw std::string (sqlite3_errmsg(db));
+    }
+}
+
+std::vector<std::string> VertretungsBoy::plan::getDates() {
+    if(dates.empty()) {
+        if(!checkTableExistence("tableDates")) {
+            update();
+        } else {
+            sqlite3_stmt *res = nullptr;
+
+            sqlite3 *db = nullptr;
+            int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+            if(SQLiteReturn != SQLITE_OK) {
+                sqlite3_close(db);
+                throw std::string (sqlite3_errmsg(db));
+            }
+
+            SQLiteReturn = sqlite3_prepare_v2(db, "SELECT * FROM tableDates;", -1, &res, nullptr);
+            if(SQLiteReturn != SQLITE_OK) {
+                sqlite3_finalize(res);
+                sqlite3_close(db);
+                throw std::string (sqlite3_errmsg(db));
+            }
+
+            do {
+                SQLiteReturn = sqlite3_step(res);
+                if (SQLiteReturn == SQLITE_ROW) {
+                    dates.push_back(reinterpret_cast<const char *>(sqlite3_column_text(res, 0)));
+                }
+            } while (SQLiteReturn == SQLITE_ROW);
+
+            sqlite3_finalize(res);
+            sqlite3_close(db);
+        }
+    }
+
+    return dates;
+}
+
+bool VertretungsBoy::plan::checkTableExistence(std::string tableName) {
+    sqlite3 *db = nullptr;
+    int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+    if (SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw std::string (sqlite3_errmsg(db));
+    }
+    sqlite3_stmt *res = nullptr;
+
+    std::string sqlQuery = "SELECT count(*) "
+                           "FROM sqlite_master "
+                           "WHERE type='table' AND name='" + tableName + "';";
+
+    SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
+    if (SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw std::string (sqlite3_errmsg(db));
+    }
+
+    sqlite3_step(res);
+
+    int boolean = sqlite3_column_int(res, 0);
+    sqlite3_finalize(res);
+    sqlite3_close(db);
+
+    return boolean != 0;
 }
