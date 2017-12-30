@@ -1,6 +1,10 @@
 #include <iostream>
 #include "include/plan.hpp"
 
+#include <discordpp/bot.hh>
+#include <discordpp/rest-curlpp.hh>
+#include <discordpp/websocket-websocketpp.hh>
+
 //At the moment just a demonstration of the plan class
 
 int main() {
