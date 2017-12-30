@@ -2,7 +2,7 @@
 // Created by StuBIT on 12/20/17.
 //
 
-#include "plan.hpp"
+#include "../include/plan.hpp"
 #include <curl/curl.h>
 
 bool VertretungsBoy::plan::curlGlobalInit = false;

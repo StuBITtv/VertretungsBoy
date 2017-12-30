@@ -1,5 +1,5 @@
 #include <iostream>
-#include "plan.hpp"
+#include "include/plan.hpp"
 
 //At the moment just a demonstration of the plan class
 
