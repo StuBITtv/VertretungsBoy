@@ -42,6 +42,14 @@ int main() {
         std::cout << std::endl;
     }
 
+    time_t t = plan1.getDateOfLastUpdate();
+    struct tm * now = localtime(&t);
+    if(t) {
+        std::cout << std::endl << "LAST UPDATED: " << now->tm_hour << ":" << now->tm_min << " "
+                  << now->tm_mday << "." << now->tm_mon + 1 << "." << now->tm_year + 1900 << std::endl;
+    } else {
+        std::cout << std::endl << "LAST UPDATED: UNKNOWN" << std::endl;
+    }
    // std::string stop;
    // std::cin >> stop;
 

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <sqlite3.h>
+#include <ctime>
 
 namespace VertretungsBoy {
 
@@ -18,8 +19,10 @@ namespace VertretungsBoy {
                      long long int timeout);
 
         void update();
+
         std::vector<std::string> getDates();
         std::vector<std::vector<std::string>> getEntries(size_t tableID, std::string searchValue);
+        time_t getDateOfLastUpdate();
 
         static bool curlGlobalInit;
 
@@ -46,6 +49,8 @@ namespace VertretungsBoy {
         void writeTableToDB(size_t tableID, std::vector<std::vector<std::string>> table);
         void writeDatesToDB();
         bool checkTableExistence(std::string tableName);
+
+        time_t lastUpdate = 0;
     };
 };
 

@@ -1,10 +1,9 @@
 //
 // Created by StuBIT on 12/20/17.
-// TODO save time of the last update
+//
 
 #include "plan.hpp"
 #include <curl/curl.h>
-#include <ctime>
 
 bool VertretungsBoy::plan::curlGlobalInit = false;
 
@@ -307,13 +306,11 @@ void VertretungsBoy::plan::writeDatesToDB() {
                "VALUES ";
 
     for(size_t i = 0; i < dates.size(); i++) {
-        sqlQuery += "(" + std::to_string(i + indexStart) + ", '" + dates[i] + "')";
-        if(i + 1 != dates.size()) {
-            sqlQuery += ", ";
-        } else if(i + 1 == dates.size()) {
-            sqlQuery += ";";
-        }
+        sqlQuery += "(" + std::to_string(i + indexStart) + ", '" + dates[i] + "'), ";
     }
+
+    lastUpdate = time(0);
+    sqlQuery += "(-1, '" + std::to_string(lastUpdate) + "');";
 
     sqlite3 *db = nullptr;
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
@@ -433,4 +430,36 @@ bool VertretungsBoy::plan::upToDate(const std::string &date) {
     }
 
     return true;
+}
+
+time_t VertretungsBoy::plan::getDateOfLastUpdate() {
+    if(!lastUpdate) {
+        if(checkTableExistence("tableDates")) {
+            sqlite3 *db = nullptr;
+            int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+            if (SQLiteReturn != SQLITE_OK) {
+                sqlite3_close(db);
+                throw std::string (sqlite3_errmsg(db));
+            }
+
+            sqlite3_stmt *res = nullptr;
+            SQLiteReturn = sqlite3_prepare_v2(db,
+                                              "SELECT dates "
+                                              "FROM tableDates "
+                                              "WHERE tableID = -1",
+                                              -1, &res, nullptr);
+
+            if (SQLiteReturn != SQLITE_OK) {
+                sqlite3_close(db);
+                throw std::string (sqlite3_errmsg(db));
+            }
+
+            SQLiteReturn = sqlite3_step(res);
+            if(SQLiteReturn == SQLITE_ROW) {
+                lastUpdate = sqlite3_column_int(res, 0);
+            }
+        }
+    }
+
+    return lastUpdate;
 }
