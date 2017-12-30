@@ -14,11 +14,12 @@ namespace VertretungsBoy {
     class plan {
 
     public:
-        plan(std::vector<std::string> urls, long long int timeout, std::string dbPath, bool skipOutdated);
+        plan(std::vector<std::string> urls, std::string dbPath, bool skipOutdated, size_t indexStart,
+                     long long int timeout);
 
         void update();
         std::vector<std::string> getDates();
-        std::vector<std::vector<std::string>> getEntries(size_t tableNumber, std::string searchValue);
+        std::vector<std::vector<std::string>> getEntries(size_t tableID, std::string searchValue);
 
         static bool curlGlobalInit;
 
@@ -41,7 +42,8 @@ namespace VertretungsBoy {
 
 
         std::string dbPath;
-        void writeTableToDB(size_t tableNumber, std::vector<std::vector<std::string>> table);
+        size_t indexStart;
+        void writeTableToDB(size_t tableID, std::vector<std::vector<std::string>> table);
         void writeDatesToDB();
         bool checkTableExistence(std::string tableName);
     };
