@@ -12,12 +12,12 @@ namespace asio = boost::asio;
 //#include <nlohmann/json.hpp>
 
 #include "management.hpp"
+#include "plan.hpp"
 
 using json = nlohmann::json;
 using aios_ptr = std::shared_ptr<asio::io_service>;
 
 int main() {
-    std::cout << "Starting bot...\n\n";
 
     aios_ptr aios = std::make_shared<asio::io_service>();
 
@@ -30,12 +30,87 @@ int main() {
 
     bot.addHandler("MESSAGE_CREATE", [](discordpp::Bot* bot, json msg){
 		std::string content = msg["content"];
-		if(content[0] == '$'){
+		if(content[0] == '*'){
 			content.erase(0, 1);
 			std::vector<std::string> arg = VertretungsBoy::parseMessage(content);
 			
 			for(size_t i = 0; i < arg.size(); i++) {
 				std::cout << arg[i] << std::endl;
+			}
+			
+			if(!arg.empty()) {
+				std::vector<std::string> urls {"dbg-metzingen.de/vertretungsplan/tage/subst_001.htm", "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};
+				VertretungsBoy::plan plan(urls, ".VertretungsBoy.db", true, 0, 10);
+				
+				if(arg[0] == "info") {
+					if(arg.size() > 1) {
+						// specific
+					} else {
+						// last
+					}
+				} else if (arg[0] == "update") {
+					
+					bool noError = true;
+					
+					try {
+							plan.update();
+					} catch (std::string error) {
+							 
+							 noError = false;
+							 
+							 bot->call(
+								 "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+								 {{"content", "Oh, da ist wohl etwas schief gelaufen :disappointed: (" + error + ")"}},
+								 "POST"
+							 );	
+					}
+					
+					if(noError) {
+						bot->call(
+								  "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+								  {{"content", "Fertig, alles aktualisiert :blush:"}},
+								  "POST"
+								 );	
+					}
+					
+				} else if (arg[0] == "date") {
+					
+					std::vector<std::string> dates;
+					
+					try {
+							dates = plan.getDates();
+					} catch (std::string error) {
+							 bot->call(
+								 "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+								 {{"content", "Oh, da ist wohl etwas schief gelaufen :disappointed: (" + error + ")"}},
+								 "POST"
+							 );	
+					}
+					
+					if(!dates.empty()) {
+						
+						std::string datesString;
+						
+						for(size_t i = 0; i < dates.size(); i++) {
+							if(dates[i] != "OUTDATED") {
+								datesString += dates[i] + "\n";
+							}
+						}
+						
+						bot->call(
+							 "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+							 {{"content", datesString}},
+							 "POST"
+						);	
+					}
+					
+				} else {
+					bot->call(
+								"/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+								{{"content", "Ne, das ist definitiv kein Befehl... :thinking:"}},
+								"POST"
+                    );
+				}
 			}
 		}
     });
