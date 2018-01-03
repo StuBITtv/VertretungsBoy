@@ -1,61 +1,46 @@
 #include <iostream>
-#include "include/plan.hpp"
+
+#include <boost/filesystem.hpp>
+#include <boost/asio.hpp>
+namespace asio = boost::asio;
 
 #include <discordpp/bot.hh>
 #include <discordpp/rest-curlpp.hh>
 #include <discordpp/websocket-websocketpp.hh>
 
-//At the moment just a demonstration of the plan class
+//#include <lib/nlohmannjson/src/json.hpp>
+//#include <nlohmann/json.hpp>
+
+#include "management.hpp"
+
+using json = nlohmann::json;
+using aios_ptr = std::shared_ptr<asio::io_service>;
 
 int main() {
+    std::cout << "Starting bot...\n\n";
 
+    aios_ptr aios = std::make_shared<asio::io_service>();
 
-    std::vector<std::string> urls { "dbg-metzingen.de/vertretungsplan/tage/subst_001.htm", "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm" };
-    VertretungsBoy::plan plan1(urls, ".planBackup.db", true, 0, 10);
-    VertretungsBoy::plan plan2(urls, ".planBackup.db", true, 2, 10);
+    discordpp::Bot bot(
+            aios,
+            "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs",
+            std::make_shared<discordpp::RestCurlPPModule>(aios, "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs"),
+            std::make_shared<discordpp::WebsocketWebsocketPPModule>(aios, "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs")
+    );
 
-    std::vector<std::string> dates = plan1.getDates();
+    bot.addHandler("MESSAGE_CREATE", [](discordpp::Bot* bot, json msg){
+		std::string content = msg["content"];
+		if(content[0] == '$'){
+			content.erase(0, 1);
+			std::vector<std::string> arg = VertretungsBoy::parseMessage(content);
+			
+			for(size_t i = 0; i < arg.size(); i++) {
+				std::cout << arg[i] << std::endl;
+			}
+		}
+    });
 
-    for(size_t k = 0; k < urls.size(); k ++) {
+    aios->run();
 
-        std::cout << dates[k] << std::endl << std::endl;
-        auto entries = plan1.getEntries(k, "10");
-        for (size_t i = 0; i < entries.size(); i++) {
-            for (size_t j = 0; j < entries[i].size(); j++) {
-                std::cout << entries[i][j] << "   ";
-            }
-
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
-    dates = plan2.getDates();
-
-    for(size_t k = 0; k < urls.size(); k ++) {
-
-        std::cout << dates[k] << std::endl << std::endl;
-        auto entries = plan2.getEntries(k, "10");
-        for (size_t i = 0; i < entries.size(); i++) {
-            for (size_t j = 0; j < entries[i].size(); j++) {
-                std::cout << entries[i][j] << "   ";
-            }
-
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
-    time_t t = plan1.getDateOfLastUpdate();
-    struct tm * now = localtime(&t);
-    if(t) {
-        std::cout << std::endl << "LAST UPDATED: " << now->tm_hour << ":" << now->tm_min << " "
-                  << now->tm_mday << "." << now->tm_mon + 1 << "." << now->tm_year + 1900 << std::endl;
-    } else {
-        std::cout << std::endl << "LAST UPDATED: UNKNOWN" << std::endl;
-    }
-   // std::string stop;
-   // std::cin >> stop;
-
-    return  0;
+    return 0;
 }
