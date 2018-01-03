@@ -415,21 +415,19 @@ bool VertretungsBoy::plan::upToDate(const std::string &date) {
         return false;
     }
 
-    time_t t = time(0);
-    struct tm * now = localtime(&t);
+    time_t now = time(0);
+    struct tm plan;
 
     size_t firstDot = date.find(".") + 1;
-    if(now->tm_mday > std::stoi(date.substr(0, firstDot - 1))) {
-        size_t lastDot = date.find_last_of(".") + 1;
-        if(now->tm_mon + 1 < std::stoi(date.substr(firstDot, lastDot - firstDot))) {
-            return true;
-        } else if(now->tm_year + 1900 < std::stoi(date.substr(lastDot, date.find(" ") - lastDot))) {
-            return true;
-        }
-        return false;
-    }
+    size_t lastDot = date.find_last_of(".") + 1;
 
-    return true;
+    plan.tm_mday = std::stoi(date.substr(0, firstDot - 1));
+    plan.tm_mon = std::stoi(date.substr(firstDot, lastDot - firstDot));
+    plan.tm_year = std::stoi(date.substr(lastDot, date.find(" ") - lastDot));
+
+    time_t planT = mktime(&plan);
+
+    return planT > now;
 }
 
 time_t VertretungsBoy::plan::getDateOfLastUpdate() {
