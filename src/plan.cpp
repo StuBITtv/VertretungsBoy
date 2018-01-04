@@ -75,8 +75,8 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
                     i = i + 20;
                     date = true;
                 } else if (element == "/di") {
-                    if(skipOutdated) {
-                        if(!upToDate(dataBuffer)) {
+                    if (skipOutdated) {
+                        if (!upToDate(dataBuffer)) {
                             dates.push_back("OUTDATED");
                             return table;
                         }
@@ -178,16 +178,16 @@ std::string VertretungsBoy::plan::toUTF8(char token) {
 void VertretungsBoy::plan::writeTableToDB(size_t tableID, std::vector<std::vector<std::string>> table) {
     std::string sqlQuery = "DROP TABLE IF EXISTS backupPlan" + std::to_string(tableID + indexStart) + ";"
 
-                           "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(tableID + indexStart) + "` ("
-                           "`classes` TEXT,"
-                           "`lessons` TEXT,"
-                           "`type` TEXT,"
-                           "`subjects` TEXT,"
-                           "`rooms` TEXT,"
-                           "`text` TEXT"
-                           ");";
+            "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(tableID + indexStart) + "` ("
+                                   "`classes` TEXT,"
+                                   "`lessons` TEXT,"
+                                   "`type` TEXT,"
+                                   "`subjects` TEXT,"
+                                   "`rooms` TEXT,"
+                                   "`text` TEXT"
+                                   ");";
 
-    if(!table.empty()) {
+    if (!table.empty()) {
         sqlQuery += "INSERT INTO `backupPlan" + std::to_string(tableID + indexStart) +
                     "`(`classes`,`lessons`,`type`,`subjects`,`rooms`,`text`) VALUES ";
 
@@ -207,7 +207,7 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableID, std::vector<std::vecto
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw std::string (sqlite3_errmsg(db));
+        throw std::string(sqlite3_errmsg(db));
     }
 
     SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
@@ -222,15 +222,15 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
         throw std::string("Not a valid table number");
     }
 
-    if(dates.empty()) {
+    if (dates.empty()) {
         getDates();
     }
 
-    if(dates[tableID] == "OUTDATED") {
-        return std::vector<std::vector<std::string>> ();
+    if (dates[tableID] == "OUTDATED") {
+        return std::vector<std::vector<std::string>>();
     }
 
-    if(!checkTableExistence("backupPlan" + std::to_string(tableID + indexStart))) {
+    if (!checkTableExistence("backupPlan" + std::to_string(tableID + indexStart))) {
         update();
     }
 
@@ -240,20 +240,20 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
 
     sqlite3_stmt *res;
     std::string sqlQuery = "SELECT * "
-                           "FROM backupPlan" + std::to_string(tableID + indexStart) + " "
-                           "WHERE classes LIKE '%" + searchValue + "%'";
+                                   "FROM backupPlan" + std::to_string(tableID + indexStart) + " "
+                                   "WHERE classes LIKE '%" + searchValue + "%'";
 
     sqlite3 *db = nullptr;
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
-    if(SQLiteReturn != SQLITE_OK) {
+    if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw std::string (sqlite3_errmsg(db));
+        throw std::string(sqlite3_errmsg(db));
     }
 
     SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw std::string (sqlite3_errmsg(db));
+        throw std::string(sqlite3_errmsg(db));
     }
 
     std::vector<std::vector<std::string>> table;
@@ -279,23 +279,23 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
 void VertretungsBoy::plan::writeDatesToDB() {
     std::string sqlQuery;
 
-    if(!checkTableExistence("tableDates")) {
+    if (!checkTableExistence("tableDates")) {
         sqlQuery = "CREATE TABLE `tableDates` ("
-                   "`tableID` INTEGER UNIQUE,"
-                   "`dates` TEXT"
-                   ");";
+                "`tableID` INTEGER UNIQUE,"
+                "`dates` TEXT"
+                ");";
 
         sqlite3 *db = nullptr;
         int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
-        if(SQLiteReturn != SQLITE_OK) {
+        if (SQLiteReturn != SQLITE_OK) {
             sqlite3_close(db);
-            throw std::string (sqlite3_errmsg(db));
+            throw std::string(sqlite3_errmsg(db));
         }
 
         SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
         if (SQLiteReturn != SQLITE_OK) {
             sqlite3_close(db);
-            throw std::string (sqlite3_errmsg(db));
+            throw std::string(sqlite3_errmsg(db));
         }
 
         sqlite3_close(db);
@@ -303,9 +303,9 @@ void VertretungsBoy::plan::writeDatesToDB() {
 
 
     sqlQuery = "REPLACE INTO tableDates "
-               "VALUES ";
+            "VALUES ";
 
-    for(size_t i = 0; i < dates.size(); i++) {
+    for (size_t i = 0; i < dates.size(); i++) {
         sqlQuery += "(" + std::to_string(i + indexStart) + ", '" + dates[i] + "'), ";
     }
 
@@ -314,50 +314,50 @@ void VertretungsBoy::plan::writeDatesToDB() {
 
     sqlite3 *db = nullptr;
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
-    if(SQLiteReturn != SQLITE_OK) {
+    if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw std::string (sqlite3_errmsg(db));
+        throw std::string(sqlite3_errmsg(db));
     }
 
     SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
     sqlite3_close(db);
-    if(SQLiteReturn != SQLITE_OK) {
-        throw std::string (sqlite3_errmsg(db));
+    if (SQLiteReturn != SQLITE_OK) {
+        throw std::string(sqlite3_errmsg(db));
     }
 }
 
 std::vector<std::string> VertretungsBoy::plan::getDates() {
-    if(dates.empty()) {
-        if(!checkTableExistence("tableDates")) {
+    if (dates.empty()) {
+        if (!checkTableExistence("tableDates")) {
             update();
         } else {
             sqlite3_stmt *res = nullptr;
 
             sqlite3 *db = nullptr;
             int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
-            if(SQLiteReturn != SQLITE_OK) {
+            if (SQLiteReturn != SQLITE_OK) {
                 sqlite3_close(db);
-                throw std::string (sqlite3_errmsg(db));
+                throw std::string(sqlite3_errmsg(db));
             }
 
             std::string sqlQuery = "SELECT * FROM tableDates "
-                                   "WHERE tableID "
-                                   "BETWEEN " + std::to_string(indexStart) + " AND "
-                                              + std::to_string(indexStart + urls.size() - 1) + ";";
+                                           "WHERE tableID "
+                                           "BETWEEN " + std::to_string(indexStart) + " AND "
+                                   + std::to_string(indexStart + urls.size() - 1) + ";";
 
             SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, nullptr);
-            if(SQLiteReturn != SQLITE_OK) {
+            if (SQLiteReturn != SQLITE_OK) {
                 sqlite3_finalize(res);
                 sqlite3_close(db);
-                throw std::string (sqlite3_errmsg(db));
+                throw std::string(sqlite3_errmsg(db));
             }
 
             do {
                 SQLiteReturn = sqlite3_step(res);
                 if (SQLiteReturn == SQLITE_ROW) {
                     std::string date = reinterpret_cast<const char *>(sqlite3_column_text(res, 1));
-                    if(skipOutdated) {
-                        if(upToDate(date)) {
+                    if (skipOutdated) {
+                        if (upToDate(date)) {
                             dates.push_back(date);
                         } else {
                             dates.push_back("OUTDATED");
@@ -367,13 +367,13 @@ std::vector<std::string> VertretungsBoy::plan::getDates() {
                     }
                 }
             } while (SQLiteReturn == SQLITE_ROW);
-			
-			sqlite3_finalize(res);
-			sqlite3_close(db);
-        
+
+            sqlite3_finalize(res);
+            sqlite3_close(db);
+
         }
 
-        if(dates.size() != urls.size()) {
+        if (dates.size() != urls.size()) {
             dates.clear();
             update();
         }
@@ -387,18 +387,18 @@ bool VertretungsBoy::plan::checkTableExistence(std::string tableName) {
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw std::string (sqlite3_errmsg(db));
+        throw std::string(sqlite3_errmsg(db));
     }
     sqlite3_stmt *res = nullptr;
 
     std::string sqlQuery = "SELECT count(*) "
-                           "FROM sqlite_master "
-                           "WHERE type='table' AND name='" + tableName + "';";
+                                   "FROM sqlite_master "
+                                   "WHERE type='table' AND name='" + tableName + "';";
 
     SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
     if (SQLiteReturn != SQLITE_OK) {
         sqlite3_close(db);
-        throw std::string (sqlite3_errmsg(db));
+        throw std::string(sqlite3_errmsg(db));
     }
 
     sqlite3_step(res);
@@ -412,7 +412,7 @@ bool VertretungsBoy::plan::checkTableExistence(std::string tableName) {
 
 bool VertretungsBoy::plan::upToDate(const std::string &date) {
 
-    if(date == "OUTDATED") {
+    if (date == "OUTDATED") {
         return false;
     }
 
@@ -432,29 +432,29 @@ bool VertretungsBoy::plan::upToDate(const std::string &date) {
 }
 
 time_t VertretungsBoy::plan::getDateOfLastUpdate() {
-    if(!lastUpdate) {
-        if(checkTableExistence("tableDates")) {
+    if (!lastUpdate) {
+        if (checkTableExistence("tableDates")) {
             sqlite3 *db = nullptr;
             int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
             if (SQLiteReturn != SQLITE_OK) {
                 sqlite3_close(db);
-                throw std::string (sqlite3_errmsg(db));
+                throw std::string(sqlite3_errmsg(db));
             }
 
             sqlite3_stmt *res = nullptr;
             SQLiteReturn = sqlite3_prepare_v2(db,
                                               "SELECT dates "
-                                              "FROM tableDates "
-                                              "WHERE tableID = -1",
+                                                      "FROM tableDates "
+                                                      "WHERE tableID = -1",
                                               -1, &res, nullptr);
 
             if (SQLiteReturn != SQLITE_OK) {
                 sqlite3_close(db);
-                throw std::string (sqlite3_errmsg(db));
+                throw std::string(sqlite3_errmsg(db));
             }
 
             SQLiteReturn = sqlite3_step(res);
-            if(SQLiteReturn == SQLITE_ROW) {
+            if (SQLiteReturn == SQLITE_ROW) {
                 lastUpdate = sqlite3_column_int(res, 0);
             }
 
