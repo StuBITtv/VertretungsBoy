@@ -86,3 +86,11 @@ std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::str
 
     return output;
 }
+
+void VertretungsBoy::createErrorMsg(discordpp::Bot *bot, std::string error, std::string channelID) {
+    VertretungsBoy::createMsg(bot, "Ups, das hat nicht funktioniert :no_mouth: *" + error + "*", channelID);
+}
+
+void VertretungsBoy::createMsg(discordpp::Bot *bot, std::string msg, std::string channelID) {
+    bot->call("/channels/" + channelID + "/messages", {{"content", msg}}, "POST");
+}

@@ -42,19 +42,12 @@ int main() {
                                               "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};
                 VertretungsBoy::plan plan(urls, ".VertretungsBoy.db", true, 0, 10);
 
-                const std::string errorMsg = "Ups, das hat nicht funktioniert :no_mouth: ";
-
                 if (arg[0] == "info") {
                     if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
                         try {
                             plan.update();
                         } catch (std::string error) {
-                            bot->call(
-                                    "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                                    {{"content", errorMsg + "*" + error + "*"}},
-                                    "POST"
-                            );
-
+                            VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                             return;
                         }
                     }
@@ -63,11 +56,7 @@ int main() {
                     try {
                         dates = plan.getDates();
                     } catch (std::string error) {
-                        bot->call(
-                                "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                                {{"content", errorMsg + "*" + error + "*"}},
-                                "POST"
-                        );
+                        VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                         return;
                     }
 
@@ -78,7 +67,13 @@ int main() {
                             std::vector<std::vector<std::string>> buffer;
 
                             if (arg.size() > 1) {
-                                buffer = plan.getEntries(i, arg[1]); // TODO catch errors
+                                try {
+                                    buffer = plan.getEntries(i, arg[1]);
+                                } catch (std::string error) {
+                                    VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+                                    return;
+                                }
+
                             } else {
                                 // last
                             }
@@ -88,44 +83,23 @@ int main() {
                             }
                         }
                     }
-
-                    bot->call(
-                            "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                            {{"content", output}},
-                            "POST"
-                    );
+                    VertretungsBoy::createMsg(bot, output, msg["channel_id"]);
 
                 } else if (arg[0] == "update") {
                     try {
                         plan.update();
                     } catch (std::string error) {
-                        bot->call(
-                                "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                                {{"content", errorMsg + "*" + error + "*"}},
-                                "POST"
-                        );
-
+                        VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                         return;
                     }
-
-                    bot->call(
-                            "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                            {{"content", "Fertig, alles aktualisiert :blush:"}},
-                            "POST"
-                    );
+                    VertretungsBoy::createMsg(bot, "Fertig, alles aktualisiert :blush:", msg["channel_id"]);
 
                 } else if (arg[0] == "date" || arg[0] == "dates") {
                     if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
                         try {
                             plan.update();
                         } catch (std::string error) {
-                            bot->call(
-                                    "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                                    {{"content",
-                                             errorMsg + "*" + error + "*"}},
-                                    "POST"
-                            );
-
+                            VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                             return;
                         }
                     }
@@ -135,11 +109,7 @@ int main() {
                     try {
                         dates = plan.getDates();
                     } catch (std::string error) {
-                        bot->call(
-                                "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                                {{"content", errorMsg + "*" + error + "*"}},
-                                "POST"
-                        );
+                        VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                         return;
                     }
 
@@ -152,19 +122,11 @@ int main() {
                             }
                         }
 
-                        bot->call(
-                                "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                                {{"content", datesString}},
-                                "POST"
-                        );
+                        VertretungsBoy::createMsg(bot, datesString, msg["channel_id"]);
                     }
 
                 } else {
-                    bot->call(
-                            "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
-                            {{"content", "Neee, das ist definitiv kein Befehl... :thinking:"}},
-                            "POST"
-                    );
+                    VertretungsBoy::createMsg(bot, "Neee, das ist definitiv kein Befehl... :thinking:", msg["channel_id"]);
                 }
             }
         }

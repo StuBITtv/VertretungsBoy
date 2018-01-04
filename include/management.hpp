@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include <discordpp/bot.hh>
 
 namespace VertretungsBoy {
     
@@ -11,4 +12,7 @@ namespace VertretungsBoy {
 	
 	std::string getLastRequest(std::string dbPath, std::string userID);
 	void saveRequest(std::string dbPath, std::string userID, std::string request);
+
+	void createErrorMsg(discordpp::Bot *bot, std::string error, std::string channelID);
+    void createMsg(discordpp::Bot *bot, std::string msg, std::string channelID);
 };
