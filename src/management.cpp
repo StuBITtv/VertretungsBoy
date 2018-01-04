@@ -65,3 +65,22 @@ bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
 	
 	return false;
 }
+
+std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::string>> table) {
+	std::string output;
+	for(size_t i = 0; i < table.size(); i++) {
+		output += "Klasse(n):    " + table[i][0] + "\n";
+		output += "Stunde(n):    " + table[i][1] + "\n";
+		output += "Art:          " + table[i][2] + "\n";
+		output += "Fach:         " + table[i][3] + "\n";
+		if(table[i][4] != "---") {
+			output += "Raum:         " + table[i][4] + "\n";
+		}
+		if(table[i][5] != "&nbsp;") {
+			output += "Text:         " +  table[i][5] + "\n";
+		}
+		output += "\n";
+	}
+	
+	return output;
+}

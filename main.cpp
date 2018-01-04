@@ -30,8 +30,8 @@ int main() {
 
     bot.addHandler("MESSAGE_CREATE", [](discordpp::Bot* bot, json msg){
 		std::string content = msg["content"];
-		if(content[0] == '*'){
-			content.erase(0, 1);
+		if(content.substr(0, 2) == ">>"){
+			content.erase(0, 2);
 			std::vector<std::string> arg = VertretungsBoy::parseMessage(content);
 			
 			for(size_t i = 0; i < arg.size(); i++) {
@@ -43,15 +43,57 @@ int main() {
 				VertretungsBoy::plan plan(urls, ".VertretungsBoy.db", true, 0, 10);
 				
 				if(arg[0] == "info") {
-					if(arg.size() > 1) {
-						// specific
-					} else {
-						// last
+					if(VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
+						try {
+								plan.update();
+						} catch (std::string error) {
+							bot->call(
+							          "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+									  {{"content", "Oh, da ist wohl etwas schief gelaufen :disappointed: (" + error + ")"}},
+									  "POST"
+							);	
+								 
+							return -1;
+						}
+					}
+					std::vector<std::string> dates;
+					
+					try {
+						dates = plan.getDates();
+					} catch (std::string error) {
+						bot->call(
+								 "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+								 {{"content", "Oh, da ist wohl etwas schief gelaufen :disappointed: *(" + error + ")*"}},
+								 "POST"
+							 );	
+						return -1;
 					}
 					
+					std::string output;
+					
+					for(size_t i = 0; i < dates.size(); i++) {
+						if(dates[i] != "OUTDATED") {
+							std::vector<std::vector<std::string>> buffer;
+							
+							if(arg.size() > 1) {
+								 buffer = plan.getEntries(i, arg[1]); // TODO catch errors
+							} else {
+								// last
+							}
+							if(!buffer.empty()) {
+								output += "**__" + dates[i].substr(0, dates[i].find(" ")) + "__**\n\n";
+								output += VertretungsBoy::createEntriesString(buffer) + "\n";
+							}
+						}
+					}
+					
+					bot->call(
+								"/channels/" + msg["channel_id"].get<std::string>() + "/messages",
+								{{"content", output}},
+								"POST"
+                    );
+					
 				} else if (arg[0] == "update") {
-					
-					
 					try {
 							plan.update();
 					} catch (std::string error) {
@@ -71,18 +113,17 @@ int main() {
 							 );	
 
 				} else if (arg[0] == "date" || arg[0] == "dates") {
-
 					if(VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
 						try {
 								plan.update();
 						} catch (std::string error) {
-								 bot->call(
+							 bot->call(
 									 "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
 									 {{"content", "Oh, da ist wohl etwas schief gelaufen :disappointed: (" + error + ")"}},
 									 "POST"
-								 );	
+							 );	
 								 
-								 return -1;
+							 return -1;
 						}
 					}
 					
@@ -91,7 +132,7 @@ int main() {
 					try {
 							dates = plan.getDates();
 					} catch (std::string error) {
-							 bot->call(
+						bot->call(
 								 "/channels/" + msg["channel_id"].get<std::string>() + "/messages",
 								 {{"content", "Oh, da ist wohl etwas schief gelaufen :disappointed: (" + error + ")"}},
 								 "POST"
@@ -100,7 +141,6 @@ int main() {
 					}
 					
 					if(!dates.empty()) {
-						
 						std::string datesString;
 						
 						for(size_t i = 0; i < dates.size(); i++) {
