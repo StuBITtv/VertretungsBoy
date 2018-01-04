@@ -37,10 +37,6 @@ int main() {
             content.erase(0, 2);
             std::vector<std::string> arg = VertretungsBoy::parseMessage(content);
 
-            for (size_t i = 0; i < arg.size(); i++) {
-                std::cout << arg[i] << std::endl;
-            }
-
             if (!arg.empty()) {
                 std::vector<std::string> urls{"dbg-metzingen.de/vertretungsplan/tage/subst_001.htm",
                                               "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};

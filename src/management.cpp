@@ -31,6 +31,10 @@ bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
     struct tm *now = localtime(&t);
     struct tm UpdateTime;
 
+    if(t - lastUpdate > 63800) {
+        return true;
+    }
+
     UpdateTime.tm_sec = 0;
     UpdateTime.tm_min = 45;
     UpdateTime.tm_hour = 1;
@@ -67,15 +71,15 @@ bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
 std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::string>> table) {
     std::string output;
     for (size_t i = 0; i < table.size(); i++) {
-        output += "Klasse(n):    " + table[i][0] + "\n";
+        output += "**Klasse(n):    " + table[i][0] + "**\n";
         output += "Stunde(n):    " + table[i][1] + "\n";
-        output += "Art:          " + table[i][2] + "\n";
-        output += "Fach:         " + table[i][3] + "\n";
+        output += "Art:                  " + table[i][2] + "\n";
+        output += "Fach:               " + table[i][3] + "\n";
         if (table[i][4] != "---") {
-            output += "Raum:         " + table[i][4] + "\n";
+            output += "Raum:             " + table[i][4] + "\n";
         }
         if (table[i][5] != "&nbsp;") {
-            output += "Text:         " + table[i][5] + "\n";
+            output += "Text:             " + table[i][5] + "\n";
         }
         output += "\n";
     }
