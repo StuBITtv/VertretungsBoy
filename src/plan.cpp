@@ -367,9 +367,10 @@ std::vector<std::string> VertretungsBoy::plan::getDates() {
                     }
                 }
             } while (SQLiteReturn == SQLITE_ROW);
-
-            sqlite3_finalize(res);
-            sqlite3_close(db);
+			
+			sqlite3_finalize(res);
+			sqlite3_close(db);
+        
         }
 
         if(dates.size() != urls.size()) {
