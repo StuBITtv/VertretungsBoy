@@ -457,6 +457,9 @@ time_t VertretungsBoy::plan::getDateOfLastUpdate() {
             if(SQLiteReturn == SQLITE_ROW) {
                 lastUpdate = sqlite3_column_int(res, 0);
             }
+
+            sqlite3_finalize(res);
+            sqlite3_close(db);
         }
     }
 
