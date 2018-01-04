@@ -1,4 +1,6 @@
 #include <../include/management.hpp>
+#include <iostream>
+#include <ctime>
 
 std::vector<std::string> VertretungsBoy::parseMessage(std::string &content) {
 	std::string buffer;
@@ -24,4 +26,42 @@ std::vector<std::string> VertretungsBoy::parseMessage(std::string &content) {
 	}
 	
 	return arg;
+}
+
+bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
+	time_t t= time(0);
+	std::tm *now = localtime(&t);
+	std::tm UpdateTime;
+	
+	UpdateTime.tm_sec = 0;
+	UpdateTime.tm_min = 45;
+	UpdateTime.tm_hour = 1;
+	UpdateTime.tm_mday = now->tm_mday;
+	UpdateTime.tm_mon = now->tm_mon;
+	UpdateTime.tm_year = now->tm_year;
+	
+	time_t updateT = mktime(&UpdateTime);
+	
+	if(t > updateT) {
+		if(lastUpdate < updateT) {
+			return true;
+		}
+	}
+	
+	UpdateTime.tm_sec = 0;
+	UpdateTime.tm_min = 15;
+	UpdateTime.tm_hour = 0;
+	UpdateTime.tm_mday = now->tm_mday;
+	UpdateTime.tm_mon = now->tm_mon;
+	UpdateTime.tm_year = now->tm_year;
+	
+	updateT = mktime(&UpdateTime);
+	
+	if(t > updateT) {
+		if(lastUpdate < updateT) {
+			return true;
+		}
+	}
+	
+	return false;
 }
