@@ -190,7 +190,14 @@ std::string VertretungsBoy::time_tToString(time_t t){
     }
 
     struct tm *time = localtime(&t);
+    std::string dateString = std::to_string(time->tm_mday) + "." + std::to_string(time->tm_mon + 1) + "." +
+                        std::to_string(time->tm_year + 1900) + " um " + std::to_string(time->tm_hour) + ":";
 
-    return std::string (std::to_string(time->tm_mday) + "." + std::to_string(time->tm_mon + 1) + "." +
-                        std::to_string(time->tm_year + 1900) + " um " + std::to_string(time->tm_hour) + ":" + std::to_string(time->tm_min));
+    if(time->tm_min < 10) {
+	dateString += "0" + std::to_string(time->tm_min);
+    } else {
+	dateString += std::to_string(time->tm_min);
+    }
+
+    return dateString;
 }
