@@ -1,4 +1,4 @@
-#define TOKEN "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs" //THIS IS NOT A VALIDE TOKEN
+#define TOKEN "Bot TOKEN" //THIS IS NOT A VALID TOKEN
 #define DBPATH ".VertretungsBoy.db"
 
 #include <iostream>
@@ -42,7 +42,7 @@ int main() {
                                               "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};
                 VertretungsBoy::plan plan(urls, DBPATH, true, 0, 10);
 
-                if (arg[0] == "info") {
+                if (arg[0] == "info" || arg[0] == "i") {
                     if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
                         try {
                             plan.update();
@@ -103,7 +103,7 @@ int main() {
                     }
                     VertretungsBoy::createMsg(bot, output, msg["channel_id"]);
 
-                } else if (arg[0] == "update") {
+                } else if (arg[0] == "update" || arg[0] == "u") {
                     try {
                         plan.update();
                     } catch (std::string error) {
@@ -112,8 +112,11 @@ int main() {
                     }
                     VertretungsBoy::createMsg(bot, "Fertig, alles aktualisiert :blush:", msg["channel_id"]);
 
-                } else if (arg[0] == "date" || arg[0] == "dates") {
-                    if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
+                } else if (arg[0] == "date" || arg[0] == "d") {
+
+                    time_t lastUpdate = plan.getDateOfLastUpdate();
+
+                    if (VertretungsBoy::needsUpdate(lastUpdate)) {
                         try {
                             plan.update();
                         } catch (std::string error) {
@@ -131,20 +134,42 @@ int main() {
                         return;
                     }
 
+                    std::string datesString;
+
                     if (!dates.empty()) {
-                        std::string datesString;
+
 
                         for (size_t i = 0; i < dates.size(); i++) {
                             if (dates[i] != "OUTDATED") {
                                 datesString += dates[i] + "\n";
                             }
                         }
-
-                        VertretungsBoy::createMsg(bot, datesString, msg["channel_id"]);
                     }
 
+                    datesString += "\nZuletzt aktualisiert am " + VertretungsBoy::time_tToString(lastUpdate);
+
+                    VertretungsBoy::createMsg(bot, datesString, msg["channel_id"]);
+                } else if (arg[0] == "help" || arg[0] == "h"){
+                    VertretungsBoy::createMsg(bot, "__**Befehle:**__\n"
+                                                   "\n"
+                                                   "Befehle werden durch `>>` am Anfang gekennzeichnet, alle weitere Parameter werden durch Leerzeichen getrennt. Groß- und Kleinschreibung wird nicht beachtet\n"
+                                                   "\n"
+                                                   "`i` oder `info`:\n"
+                                                   "Zeigt die Einträge für die Klasse in der Datenbank. Als Paramter kann eine Klasse angegeben werden, ansonsten wird die zuletzte angegebene Klasse verwendet\n"
+                                                   "\n"
+                                                   "`u` oder `update`\n"
+                                                   "Aktualisiert die Datenbank. Sollte nur bei Fehlern in der Datenbank aufgerufen werden, da sich die Datenbank ansonst automatisch aktualisiert\n"
+                                                   "\n"
+                                                   "`d` oder `date`\n"
+                                                   "Zeigt die Daten zu den Datums in der Datenbank\n"
+                                                   "\n"
+                                                   "`h` oder `help`\n"
+                                                   "Zeigt diese Hilfe, offensichtlich :joy:",
+                                              msg["channel_id"]);
                 } else {
-                    VertretungsBoy::createMsg(bot, "Neee, das ist definitiv kein Befehl... :thinking:", msg["channel_id"]);
+                    VertretungsBoy::createMsg(bot, "Neee, das ist definitiv kein Befehl...\n"
+                                                   "Versuch mal `h` oder `help` für die Hilfe :thinking: ",
+                                              msg["channel_id"]);
                 }
             }
         }

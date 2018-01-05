@@ -7,7 +7,9 @@ namespace VertretungsBoy {
 	std::vector<std::string> parseMessage(std::string &content);
 	
 	std::string createEntriesString(std::vector<std::vector<std::string>> table);
-	
+
+    std::string time_tToString(time_t t);
+
 	bool needsUpdate(time_t lastUpdate);
 	
 	std::string getLastSearch(std::string dbPath, std::string userID);

@@ -183,3 +183,14 @@ void VertretungsBoy::saveSearch(std::string dbPath, std::string userID, std::str
         throw std::string(sqlite3_errmsg(db));
     }
 }
+
+std::string VertretungsBoy::time_tToString(time_t t){
+    if(!t) {
+        return std::string ("unbekannt");
+    }
+
+    struct tm *time = localtime(&t);
+
+    return std::string (std::to_string(time->tm_mday) + "." + std::to_string(time->tm_mon + 1) + "." +
+                        std::to_string(time->tm_year + 1900) + " um " + std::to_string(time->tm_hour) + ":" + std::to_string(time->tm_min));
+}
