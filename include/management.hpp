@@ -10,8 +10,8 @@ namespace VertretungsBoy {
 	
 	bool needsUpdate(time_t lastUpdate);
 	
-	std::string getLastRequest(std::string dbPath, std::string userID);
-	void saveRequest(std::string dbPath, std::string userID, std::string request);
+	std::string getLastSearch(std::string dbPath, std::string userID);
+	void saveSearch(std::string dbPath, std::string userID, std::string searchValue);
 
 	void createErrorMsg(discordpp::Bot *bot, std::string error, std::string channelID);
     void createMsg(discordpp::Bot *bot, std::string msg, std::string channelID);

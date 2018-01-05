@@ -1,3 +1,6 @@
+#define TOKEN "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs" //THIS IS NOT A VALIDE TOKEN
+#define DBPATH ".VertretungsBoy.db"
+
 #include <iostream>
 
 #include <boost/filesystem.hpp>
@@ -24,12 +27,9 @@ int main() {
 
     discordpp::Bot bot(
             aios,
-            "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs",
-            std::make_shared<discordpp::RestCurlPPModule>(aios,
-                                                          "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs"),
-            std::make_shared<discordpp::WebsocketWebsocketPPModule>(aios,
-                                                                    "Bot Mjg0NjUzODYyMTMwODEwODgw.DSwWvQ.mInKkiDy14zyt6CCKKp-SEIBGcs")
-    );
+            TOKEN,
+            std::make_shared<discordpp::RestCurlPPModule>(aios, TOKEN),
+            std::make_shared<discordpp::WebsocketWebsocketPPModule>(aios,  TOKEN));
 
     bot.addHandler("MESSAGE_CREATE", [](discordpp::Bot *bot, json msg) {
         std::string content = msg["content"];
@@ -40,7 +40,7 @@ int main() {
             if (!arg.empty()) {
                 std::vector<std::string> urls{"dbg-metzingen.de/vertretungsplan/tage/subst_001.htm",
                                               "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};
-                VertretungsBoy::plan plan(urls, ".VertretungsBoy.db", true, 0, 10);
+                VertretungsBoy::plan plan(urls, DBPATH, true, 0, 10);
 
                 if (arg[0] == "info") {
                     if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
@@ -67,6 +67,10 @@ int main() {
                             std::vector<std::vector<std::string>> buffer;
 
                             if (arg.size() > 1) {
+                                if(arg[1][0] == 'k') {
+                                    arg[1][0] = 'K';
+                                }
+
                                 try {
                                     buffer = plan.getEntries(i, arg[1]);
                                 } catch (std::string error) {
@@ -74,12 +78,26 @@ int main() {
                                     return;
                                 }
 
+                                try {
+                                    VertretungsBoy::saveSearch(DBPATH, msg["author"]["id"], arg[1]);
+                                } catch (std::string error) {
+                                    VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+                                    return;
+                                }
+
                             } else {
-                                // last
+                                try {
+                                    buffer = plan.getEntries(i, VertretungsBoy::getLastSearch(DBPATH, msg["author"]["id"]));
+                                } catch (std::string error) {
+                                    VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+                                    return;
+                                }
                             }
                             if (!buffer.empty()) {
                                 output += "**__" + dates[i].substr(0, dates[i].find(" ")) + "__**\n\n";
                                 output += VertretungsBoy::createEntriesString(buffer) + "\n";
+                            } else {
+                                output = "Nope, nichts da :neutral_face:";
                             }
                         }
                     }

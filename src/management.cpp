@@ -1,4 +1,33 @@
 #include <../include/management.hpp>
+#include <sqlite3.h>
+
+static bool checkTableExistence(std::string dbPath, std::string tableName) {
+    sqlite3 *db = nullptr;
+    int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+    if (SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw std::string(sqlite3_errmsg(db));
+    }
+    sqlite3_stmt *res = nullptr;
+
+    std::string sqlQuery = "SELECT count(*) "
+                           "FROM sqlite_master "
+                           "WHERE type='table' AND name='" + tableName + "';";
+
+    SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
+    if (SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw std::string(sqlite3_errmsg(db));
+    }
+
+    sqlite3_step(res);
+
+    int boolean = sqlite3_column_int(res, 0);
+    sqlite3_finalize(res);
+    sqlite3_close(db);
+
+    return boolean != 0;
+}
 
 std::vector<std::string> VertretungsBoy::parseMessage(std::string &content) {
     std::string buffer;
@@ -37,7 +66,7 @@ bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
 
     UpdateTime.tm_sec = 0;
     UpdateTime.tm_min = 45;
-    UpdateTime.tm_hour = 1;
+    UpdateTime.tm_hour = 8;
     UpdateTime.tm_mday = now->tm_mday;
     UpdateTime.tm_mon = now->tm_mon;
     UpdateTime.tm_year = now->tm_year;
@@ -50,14 +79,7 @@ bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
         }
     }
 
-    UpdateTime.tm_sec = 0;
-    UpdateTime.tm_min = 15;
-    UpdateTime.tm_hour = 0;
-    UpdateTime.tm_mday = now->tm_mday;
-    UpdateTime.tm_mon = now->tm_mon;
-    UpdateTime.tm_year = now->tm_year;
-
-    updateT = mktime(&UpdateTime);
+    updateT = updateT + 22500;
 
     if (t > updateT) {
         if (lastUpdate < updateT) {
@@ -88,9 +110,76 @@ std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::str
 }
 
 void VertretungsBoy::createErrorMsg(discordpp::Bot *bot, std::string error, std::string channelID) {
-    VertretungsBoy::createMsg(bot, "Ups, das hat nicht funktioniert :no_mouth: *" + error + "*", channelID);
+    VertretungsBoy::createMsg(bot, "Ups, das hat nicht funktioniert :no_mouth: \n\n`" + error + "`", channelID);
 }
 
 void VertretungsBoy::createMsg(discordpp::Bot *bot, std::string msg, std::string channelID) {
     bot->call("/channels/" + channelID + "/messages", {{"content", msg}}, "POST");
+}
+
+std::string VertretungsBoy::getLastSearch(std::string dbPath, std::string userID){
+    if(checkTableExistence(dbPath, "searchesRequests")) {
+        sqlite3 *db = nullptr;
+        int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+        if(SQLiteReturn != SQLITE_OK) {
+            sqlite3_close(db);
+            throw std::string(sqlite3_errmsg(db));
+        }
+        sqlite3_stmt *res = nullptr;
+
+        std::string sqlQuery = "SELECT searches "
+                               "FROM searchesRequests "
+                               "WHERE userID = " + userID + ";";
+
+        SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
+        if (SQLiteReturn != SQLITE_OK) {
+            sqlite3_finalize(res);
+            sqlite3_close(db);
+            throw std::string(sqlite3_errmsg(db));
+        }
+
+        std::string entry;
+
+        SQLiteReturn = sqlite3_step(res);
+        if(SQLiteReturn == SQLITE_ROW) {
+            entry = reinterpret_cast<const char *>(sqlite3_column_text(res, 0));
+        }
+
+        sqlite3_finalize(res);
+        sqlite3_close(db);
+
+        if(!entry.empty()) {
+            return entry;
+        } else {
+            throw std::string("NO ENTRY");
+        }
+
+    } else {
+        throw std::string("NO ENTRY");
+    }
+}
+
+void VertretungsBoy::saveSearch(std::string dbPath, std::string userID, std::string searchValue) {
+    sqlite3 *db = nullptr;
+    int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
+    if(SQLiteReturn != SQLITE_OK) {
+        sqlite3_close(db);
+        throw std::string(sqlite3_errmsg(db));
+    }
+
+    searchValue = sqlite3_mprintf("%Q", searchValue.c_str());
+
+    std::string sqlQuery = "CREATE TABLE IF NOT EXISTS `searchesRequests` ("
+                           "`userID`INTEGER UNIQUE,"
+                           "`searches`TEXT"
+                           ");"
+
+                           "REPLACE INTO searchesRequests "
+                           "VALUES (" + userID + ", " + searchValue + ")";
+
+    SQLiteReturn = sqlite3_exec(db, sqlQuery.c_str(), nullptr, nullptr, nullptr);
+    sqlite3_close(db);
+    if(SQLiteReturn != SQLITE_OK) {
+        throw std::string(sqlite3_errmsg(db));
+    }
 }
