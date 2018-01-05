@@ -422,6 +422,10 @@ bool VertretungsBoy::plan::upToDate(const std::string &date) {
     size_t firstDot = date.find(".") + 1;
     size_t lastDot = date.find_last_of(".") + 1;
 
+    plan.tm_sec = 59;
+    plan.tm_min = 59;
+    plan.tm_hour = 23;
+
     plan.tm_mday = std::stoi(date.substr(0, firstDot - 1));
     plan.tm_mon = std::stoi(date.substr(firstDot, lastDot - firstDot)) - 1;
     plan.tm_year = std::stoi(date.substr(lastDot, date.find(" ") - lastDot)) - 1900;
