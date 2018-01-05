@@ -178,14 +178,14 @@ std::string VertretungsBoy::plan::toUTF8(char token) {
 void VertretungsBoy::plan::writeTableToDB(size_t tableID, std::vector<std::vector<std::string>> table) {
     std::string sqlQuery = "DROP TABLE IF EXISTS backupPlan" + std::to_string(tableID + indexStart) + ";"
 
-            "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(tableID + indexStart) + "` ("
-                                   "`classes` TEXT,"
-                                   "`lessons` TEXT,"
-                                   "`type` TEXT,"
-                                   "`subjects` TEXT,"
-                                   "`rooms` TEXT,"
-                                   "`text` TEXT"
-                                   ");";
+                           "CREATE TABLE  IF NOT EXISTS `backupPlan" + std::to_string(tableID + indexStart) + "` ("
+                           "`classes` TEXT,"
+                           "`lessons` TEXT,"
+                           "`type` TEXT,"
+                           "`subjects` TEXT,"
+                           "`rooms` TEXT,"
+                           "`text` TEXT"
+                           ");";
 
     if (!table.empty()) {
         sqlQuery += "INSERT INTO `backupPlan" + std::to_string(tableID + indexStart) +
@@ -240,8 +240,8 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::getEntries(size_t ta
 
     sqlite3_stmt *res;
     std::string sqlQuery = "SELECT * "
-                                   "FROM backupPlan" + std::to_string(tableID + indexStart) + " "
-                                   "WHERE classes LIKE '%" + searchValue + "%'";
+                           "FROM backupPlan" + std::to_string(tableID + indexStart) + " "
+                           "WHERE classes LIKE '%" + searchValue + "%'";
 
     sqlite3 *db = nullptr;
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
@@ -281,9 +281,9 @@ void VertretungsBoy::plan::writeDatesToDB() {
 
     if (!checkTableExistence("tableDates")) {
         sqlQuery = "CREATE TABLE `tableDates` ("
-                "`tableID` INTEGER UNIQUE,"
-                "`dates` TEXT"
-                ");";
+                   "`tableID` INTEGER UNIQUE,"
+                   "`dates` TEXT"
+                   ");";
 
         sqlite3 *db = nullptr;
         int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
@@ -303,7 +303,7 @@ void VertretungsBoy::plan::writeDatesToDB() {
 
 
     sqlQuery = "REPLACE INTO tableDates "
-            "VALUES ";
+               "VALUES ";
 
     for (size_t i = 0; i < dates.size(); i++) {
         sqlQuery += "(" + std::to_string(i + indexStart) + ", '" + dates[i] + "'), ";
@@ -341,8 +341,8 @@ std::vector<std::string> VertretungsBoy::plan::getDates() {
             }
 
             std::string sqlQuery = "SELECT * FROM tableDates "
-                                           "WHERE tableID "
-                                           "BETWEEN " + std::to_string(indexStart) + " AND "
+                                   "WHERE tableID "
+                                   "BETWEEN " + std::to_string(indexStart) + " AND "
                                    + std::to_string(indexStart + urls.size() - 1) + ";";
 
             SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, nullptr);
@@ -392,8 +392,8 @@ bool VertretungsBoy::plan::checkTableExistence(std::string tableName) {
     sqlite3_stmt *res = nullptr;
 
     std::string sqlQuery = "SELECT count(*) "
-                                   "FROM sqlite_master "
-                                   "WHERE type='table' AND name='" + tableName + "';";
+                           "FROM sqlite_master "
+                           "WHERE type='table' AND name='" + tableName + "';";
 
     SQLiteReturn = sqlite3_prepare_v2(db, sqlQuery.c_str(), -1, &res, 0);
     if (SQLiteReturn != SQLITE_OK) {
@@ -444,8 +444,8 @@ time_t VertretungsBoy::plan::getDateOfLastUpdate() {
             sqlite3_stmt *res = nullptr;
             SQLiteReturn = sqlite3_prepare_v2(db,
                                               "SELECT dates "
-                                                      "FROM tableDates "
-                                                      "WHERE tableID = -1",
+                                              "FROM tableDates "
+                                              "WHERE tableID = -1",
                                               -1, &res, nullptr);
 
             if (SQLiteReturn != SQLITE_OK) {
