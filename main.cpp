@@ -96,10 +96,12 @@ int main() {
                             if (!buffer.empty()) {
                                 output += "**__" + dates[i].substr(0, dates[i].find(" ")) + "__**\n\n";
                                 output += VertretungsBoy::createEntriesString(buffer) + "\n";
-                            } else {
-                                output = "Nope, nichts da :neutral_face:";
                             }
                         }
+                    }
+
+                    if(output.empty()) {
+                        output = "Nope, nichts da :neutral_face:";
                     }
                     VertretungsBoy::createMsg(bot, output, msg["channel_id"]);
 
