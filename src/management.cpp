@@ -151,11 +151,11 @@ std::string VertretungsBoy::getLastSearch(std::string dbPath, std::string userID
         if(!entry.empty()) {
             return entry;
         } else {
-            throw std::string("NO ENTRY");
+            throw std::string("no last search");
         }
 
     } else {
-        throw std::string("NO ENTRY");
+        throw std::string("no last search");
     }
 }
 
