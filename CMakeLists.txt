@@ -10,7 +10,7 @@ add_subdirectory(lib/websocket-websocketpp)
 include_directories(${discordpp_SOURCE_DIR}
                     ${discordpp-rest-curlpp_SOURCE_DIR}
                     ${discordpp-websocket-websocketpp_SOURCE_DIR})
-                    
+
 include_directories(include)
 
 find_package(Boost REQUIRED COMPONENTS system filesystem)

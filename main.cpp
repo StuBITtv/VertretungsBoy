@@ -113,10 +113,7 @@ int main() {
                     VertretungsBoy::createMsg(bot, "Fertig, alles aktualisiert :blush:", msg["channel_id"]);
 
                 } else if (arg[0] == "date" || arg[0] == "d") {
-
-                    time_t lastUpdate = plan.getDateOfLastUpdate();
-
-                    if (VertretungsBoy::needsUpdate(lastUpdate)) {
+                    if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
                         try {
                             plan.update();
                         } catch (std::string error) {
@@ -146,7 +143,12 @@ int main() {
                         }
                     }
 
-                    datesString += "\nZuletzt aktualisiert am " + VertretungsBoy::time_tToString(lastUpdate);
+                    try {
+                        datesString += "\nZuletzt aktualisiert am " + VertretungsBoy::time_tToString(plan.getDateOfLastUpdate());
+                    } catch (std::string error) {
+                        VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+                        return;
+                    }
 
                     VertretungsBoy::createMsg(bot, datesString, msg["channel_id"]);
                 } else if (arg[0] == "help" || arg[0] == "h"){
