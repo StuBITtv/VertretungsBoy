@@ -79,7 +79,7 @@ bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
         }
     }
 
-    updateT = updateT + 22500;
+    updateT = updateT + 26100;
 
     if (t > updateT) {
         if (lastUpdate < updateT) {
