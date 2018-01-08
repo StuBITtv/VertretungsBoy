@@ -144,6 +144,12 @@ void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) 
             output += tokens;
         } else {
             output.insert(replaceCounter, tokens);
+            if(tokens == "Ö" || tokens == "ö" ||
+               tokens == "Ä" || tokens == "ä" ||
+               tokens == "Ü" || tokens == "ü" ||
+               tokens == "ß") {
+                replaceCounter++;
+            }
             replaceCounter++;
         }
     }
