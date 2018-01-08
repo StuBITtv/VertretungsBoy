@@ -101,7 +101,7 @@ std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::str
             output += "Raum:             " + table[i][4] + "\n";
         }
         if (table[i][5] != "&nbsp;") {
-            output += "Text:             " + table[i][5] + "\n";
+            output += "Text:               " + table[i][5] + "\n";
         }
         output += "\n";
     }
