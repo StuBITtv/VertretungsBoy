@@ -99,7 +99,7 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
 
                     } else if (element == "td ") {
                         data = true;
-                        i = i + 31;
+                        i = i + 15;
 
                         while (html[i] != '>') {
                             i++;
@@ -202,6 +202,21 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableID, std::vector<std::vecto
                         + table[j][2] + "', '" + table[j][3] + "','"
                         + table[j][4] + "', '" + table[j][5] + "')";
             if (j + 1 != table.size()) {
+                if(table[j + 1][0] == "&nbsp;" &&
+                   table[j + 1][1] == "&nbsp;" &&
+                   table[j + 1][2] == "&nbsp;" &&
+                   table[j + 1][3] == "&nbsp;" &&
+                   table[j + 1][4] == "&nbsp;" &&
+                   table[j + 1][5] != "&nbsp;") {
+                    sqlQuery.insert(sqlQuery.find_last_of("'"), " " + table[j + 1][5]);
+                    j++;
+                } else if (table[j + 1][0] == "&nbsp;" && table[j + 1][5] == "&nbsp;" && (
+                           table[j + 1][1] != "&nbsp;" ||
+                           table[j + 1][2] != "&nbsp;" ||
+                           table[j + 1][3] != "&nbsp;" ||
+                           table[j + 1][4] != "&nbsp;")) {
+                    table[j + 1][0] = table[j][0];
+                }
                 sqlQuery += ", ";
             } else {
                 sqlQuery += ";";

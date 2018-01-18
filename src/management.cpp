@@ -96,7 +96,10 @@ std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::str
         output += "**Klasse(n):    " + table[i][0] + "**\n";
         output += "Stunde(n):    " + table[i][1] + "\n";
         output += "Art:                  " + table[i][2] + "\n";
-        output += "Fach:               " + table[i][3] + "\n";
+        if (table[i][3] != "&nbsp;") {
+            output += "Fach:               " + table[i][3] + "\n";
+        }
+
         if (table[i][4] != "---") {
             output += "Raum:             " + table[i][4] + "\n";
         }
