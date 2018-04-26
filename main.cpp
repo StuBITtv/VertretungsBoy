@@ -1,4 +1,4 @@
-#define TOKEN "Bot TOKEN" //THIS IS NOT A VALID TOKEN
+#define TOKEN "Bot TOKEN" 
 #define DBPATH ".VertretungsBoy.db"
 
 #include <iostream>
@@ -37,6 +37,8 @@ int main() {
             content.erase(0, 2);
             std::vector<std::string> arg = VertretungsBoy::parseMessage(content);
 
+			std::cout << "command received: " << content << std::endl << std::endl;
+	
             if (!arg.empty()) {
                 std::vector<std::string> urls{"dbg-metzingen.de/vertretungsplan/tage/subst_001.htm",
                                               "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};
@@ -70,29 +72,24 @@ int main() {
                                 if(arg[1][0] == 'k') {
                                     arg[1][0] = 'K';
                                 }
-
+                                
                                 try {
-                                    buffer = plan.getEntries(i, arg[1]);
-                                } catch (std::string error) {
-                                    VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
-                                    return;
-                                }
+									VertretungsBoy::saveSearch(DBPATH, msg["author"]["id"], arg[1]);
+								} catch (std::string error) {
+									VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+									return;
+								}
+							} else if (arg.size() == 1) {
+								arg.push_back(VertretungsBoy::getLastSearch(DBPATH, msg["author"]["id"]));
+							}
 
-                                try {
-                                    VertretungsBoy::saveSearch(DBPATH, msg["author"]["id"], arg[1]);
-                                } catch (std::string error) {
-                                    VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
-                                    return;
-                                }
-
-                            } else {
-                                try {
-                                    buffer = plan.getEntries(i, VertretungsBoy::getLastSearch(DBPATH, msg["author"]["id"]));
-                                } catch (std::string error) {
-                                    VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
-                                    return;
-                                }
+                            try {
+								buffer = plan.getEntries(i, arg[1]);
+                            } catch (std::string error) {
+								VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+								return;
                             }
+
                             if (!buffer.empty()) {
                                 output += "**__" + dates[i].substr(0, dates[i].find(" ")) + "__**\n\n";
                                 output += VertretungsBoy::createEntriesString(buffer) + "\n";
@@ -101,8 +98,14 @@ int main() {
                     }
 
                     if(output.empty()) {
-                        output = "Nope, nichts da :neutral_face:";
+                        output = "Nope, nichts da für `" + arg[1] + "` :neutral_face:";
                     }
+                    
+                    if(output.size() > 1999) {
+						VertretungsBoy::createErrorMsg(bot, "message to big and developer to lazy to add workaround, sorry :(", msg["channel_id"]);
+						return;
+					}
+					
                     VertretungsBoy::createMsg(bot, output, msg["channel_id"]);
 
                 } else if (arg[0] == "update" || arg[0] == "u") {
