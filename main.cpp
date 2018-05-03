@@ -80,7 +80,13 @@ int main() {
 									return;
 								}
 							} else if (arg.size() == 1) {
-								arg.push_back(VertretungsBoy::getLastSearch(DBPATH, msg["author"]["id"]));
+								try {
+									arg.push_back(VertretungsBoy::getLastSearch(DBPATH, msg["author"]["id"]));
+								} catch (std::string error) {
+									VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+									return;
+									
+								}
 							}
 
                             try {
