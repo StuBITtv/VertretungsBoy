@@ -100,7 +100,7 @@ std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::str
             output += "Fach:               " + table[i][3] + "\n";
         }
 
-        if (table[i][4] != "---") {
+        if (table[i][4] != "---" && table[i][4] != "&nbsp;") {
             output += "Raum:             " + table[i][4] + "\n";
         }
         if (table[i][5] != "&nbsp;") {
