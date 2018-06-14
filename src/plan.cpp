@@ -201,22 +201,22 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableID, std::vector<std::vecto
             sqlQuery += "('" + table[j][0] + "', '" + table[j][1] + "','"
                         + table[j][2] + "', '" + table[j][3] + "','"
                         + table[j][4] + "', '" + table[j][5] + "')";
+
             if (j + 1 != table.size()) {
-                if(table[j + 1][0] == "&nbsp;" &&
-                   table[j + 1][1] == "&nbsp;" &&
-                   table[j + 1][2] == "&nbsp;" &&
-                   table[j + 1][3] == "&nbsp;" &&
-                   table[j + 1][4] == "&nbsp;" &&
-                   table[j + 1][5] != "&nbsp;") {
-                    sqlQuery.insert(sqlQuery.find_last_of("'"), " " + table[j + 1][5]);
+                if (table[j + 1][0] == "&nbsp;" &&
+                    table[j + 1][1] == "&nbsp;" &&
+                    table[j + 1][2] == "&nbsp;" &&
+                    table[j + 1][3] == "&nbsp;" &&
+                    table[j + 1][4] == "&nbsp;" &&
+                    table[j + 1][5] != "&nbsp;") {
+                    sqlQuery.insert(sqlQuery.find_last_of('\''), " " + table[j + 1][5]);
                     j++;
-                } else if (table[j + 1][0] == "&nbsp;" && table[j + 1][5] == "&nbsp;" && (
-                           table[j + 1][1] != "&nbsp;" ||
-                           table[j + 1][2] != "&nbsp;" ||
-                           table[j + 1][3] != "&nbsp;" ||
-                           table[j + 1][4] != "&nbsp;")) {
+                } else if (table[j + 1][0] == "&nbsp;") {
                     table[j + 1][0] = table[j][0];
                 }
+            }
+
+            if(j + 1 != table.size()) {
                 sqlQuery += ", ";
             } else {
                 sqlQuery += ";";

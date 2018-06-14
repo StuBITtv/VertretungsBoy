@@ -1,4 +1,4 @@
-#define TOKEN "Bot TOKEN" 
+#define TOKEN "Bot TOKEN"
 #define DBPATH ".VertretungsBoy.db"
 
 #include <iostream>
@@ -40,8 +40,8 @@ int main() {
 			std::cout << "command received: " << content << std::endl << std::endl;
 	
             if (!arg.empty()) {
-                std::vector<std::string> urls{"dbg-metzingen.de/vertretungsplan/tage/subst_001.htm",
-                                              "dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};
+                std::vector<std::string> urls{"https://dbg-metzingen.de/vertretungsplan/tage/subst_001.htm",
+                                              "https://dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"};
                 VertretungsBoy::plan plan(urls, DBPATH, true, 0, 10);
 
                 if (arg[0] == "info" || arg[0] == "i") {

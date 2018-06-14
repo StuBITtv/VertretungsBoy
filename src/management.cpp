@@ -57,8 +57,8 @@ std::vector<std::string> VertretungsBoy::parseMessage(std::string &content) {
 
 bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
     time_t t = time(0);
-    struct tm *now = localtime(&t);
-    struct tm UpdateTime;
+    tm *now = localtime(&t);
+    tm UpdateTime;
 
     if(t - lastUpdate > 63800) {
         return true;
