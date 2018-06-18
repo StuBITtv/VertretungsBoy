@@ -29,7 +29,7 @@ static bool checkTableExistence(std::string dbPath, std::string tableName) {
     return boolean != 0;
 }
 
-std::vector<std::string> VertretungsBoy::parseMessage(std::string &content) {
+std::vector<std::string> VertretungsBoy::parseMessage(const std::string &content) {
     std::string buffer;
     std::vector<std::string> arg;
 
@@ -90,13 +90,13 @@ bool VertretungsBoy::needsUpdate(time_t lastUpdate) {
     return false;
 }
 
-std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::string>> table) {
+std::string VertretungsBoy::createEntriesString(const std::vector<std::vector<std::string>> &table) {
     std::string output;
     for (size_t i = 0; i < table.size(); i++) {
         output += "**Klasse(n):    " + table[i][0] + "**\n";
         output += "Stunde(n):    " + table[i][1] + "\n";
         output += "Art:                 " + table[i][2] + "\n";
-        if (table[i][3] != "&nbsp;") {
+        if (table[i][3] != "&nbsp;" && table[i][3] != "---") {
             output += "Fach:               " + table[i][3] + "\n";
         }
 
@@ -112,15 +112,15 @@ std::string VertretungsBoy::createEntriesString(std::vector<std::vector<std::str
     return output;
 }
 
-void VertretungsBoy::createErrorMsg(discordpp::Bot *bot, std::string error, std::string channelID) {
+void VertretungsBoy::createErrorMsg(discordpp::Bot *bot, const std::string &error, const std::string &channelID) {
     VertretungsBoy::createMsg(bot, "Ups, das hat nicht funktioniert :no_mouth: \n\n`" + error + "`", channelID);
 }
 
-void VertretungsBoy::createMsg(discordpp::Bot *bot, std::string msg, std::string channelID) {
+void VertretungsBoy::createMsg(discordpp::Bot *bot, const std::string &msg, const std::string &channelID) {
     bot->call("/channels/" + channelID + "/messages", {{"content", msg}}, "POST");
 }
 
-std::string VertretungsBoy::getLastSearch(std::string dbPath, std::string userID){
+std::string VertretungsBoy::getLastSearch(const std::string &dbPath, std::string userID){
     if(checkTableExistence(dbPath, "searchesRequests")) {
         sqlite3 *db = nullptr;
         int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
@@ -162,7 +162,7 @@ std::string VertretungsBoy::getLastSearch(std::string dbPath, std::string userID
     }
 }
 
-void VertretungsBoy::saveSearch(std::string dbPath, std::string userID, std::string searchValue) {
+void VertretungsBoy::saveSearch(const std::string &dbPath, const std::string &userID, std::string searchValue) {
     sqlite3 *db = nullptr;
     int SQLiteReturn = sqlite3_open(dbPath.c_str(), &db);
     if(SQLiteReturn != SQLITE_OK) {

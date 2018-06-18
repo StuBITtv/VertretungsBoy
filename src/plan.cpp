@@ -28,7 +28,7 @@ VertretungsBoy::plan::plan(std::vector<std::string> urls, std::string dbPath, bo
 void VertretungsBoy::plan::update() {
     for (size_t i = 0; i < urls.size(); ++i) {
         download(i);
-        writeTableToDB(i, parser(htmls[i]));
+        writeTableToDB(i, std::move(parser(htmls[i])));
     }
 
     writeDatesToDB();
@@ -128,7 +128,7 @@ std::vector<std::vector<std::string>> VertretungsBoy::plan::parser(const std::st
     return table;
 }
 
-void VertretungsBoy::plan::tableWriter(std::string tokens, std::string &output) {
+void VertretungsBoy::plan::tableWriter(const std::string &tokens, std::string &output) {
     if (tokens == "<") {
         styleElement = true;
     }
@@ -198,9 +198,13 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableID, std::vector<std::vecto
                     "`(`classes`,`lessons`,`type`,`subjects`,`rooms`,`text`) VALUES ";
 
         for (size_t j = 0; j < table.size(); j++) {
+            if (table[j][3] != table[j][4] && (table[j][4] != "---" && table[j][4] != "&nbsp;")) {
+                table[j][3].insert(0, table[j][4] + " statt ");
+            }
+
             sqlQuery += "('" + table[j][0] + "', '" + table[j][1] + "','"
                         + table[j][2] + "', '" + table[j][3] + "','"
-                        + table[j][4] + "', '" + table[j][5] + "')";
+                        + table[j][5] + "', '" + table[j][6] + "')";
 
             if (j + 1 != table.size()) {
                 if (table[j + 1][0] == "&nbsp;" &&
@@ -208,7 +212,8 @@ void VertretungsBoy::plan::writeTableToDB(size_t tableID, std::vector<std::vecto
                     table[j + 1][2] == "&nbsp;" &&
                     table[j + 1][3] == "&nbsp;" &&
                     table[j + 1][4] == "&nbsp;" &&
-                    table[j + 1][5] != "&nbsp;") {
+                    table[j + 1][5] == "&nbsp;" &&
+                    table[j + 1][6] != "&nbsp;") {
                     sqlQuery.insert(sqlQuery.find_last_of('\''), " " + table[j + 1][5]);
                     j++;
                 } else if (table[j + 1][0] == "&nbsp;") {

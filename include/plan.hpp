@@ -39,7 +39,7 @@ namespace VertretungsBoy {
 
         std::vector<std::vector<std::string>> parser(const std::string &html);
         std::string toUTF8(char token);
-        void tableWriter(std::string tokens, std::string &output);
+        void tableWriter(const std::string &tokens, std::string &output);
         bool replace = false, styleElement = false;
         size_t replaceCounter = 0;
 
