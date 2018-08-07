@@ -48,7 +48,7 @@ int main() {
                     if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
                         try {
                             plan.update();
-                        } catch (std::string error) {
+                        } catch (std::string &error) {
                             VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                             return;
                         }
@@ -57,47 +57,49 @@ int main() {
 
                     try {
                         dates = plan.getDates();
-                    } catch (std::string error) {
+                    } catch (std::string &error) {
                         VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                         return;
                     }
 
                     std::string output;
 
+                    if (arg.size() == 1) {
+                        try {
+                            arg.push_back(VertretungsBoy::getLastSearch(DBPATH, msg["author"]["id"]));
+                        } catch (std::string &error) {
+                            VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+                            return;
+
+                        }
+                    }
+
                     for (size_t i = 0; i < dates.size(); i++) {
                         if (dates[i] != "OUTDATED") {
                             std::vector<std::vector<std::string>> buffer;
 
                             if (arg.size() > 1) {
-                                if(arg[1][0] == 'k') {
+                                if (arg[1][0] == 'k') {
                                     arg[1][0] = 'K';
                                 }
-                                
+
                                 try {
-									VertretungsBoy::saveSearch(DBPATH, msg["author"]["id"], arg[1]);
-								} catch (std::string error) {
-									VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
-									return;
-								}
-							} else if (arg.size() == 1) {
-								try {
-									arg.push_back(VertretungsBoy::getLastSearch(DBPATH, msg["author"]["id"]));
-								} catch (std::string error) {
-									VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
-									return;
-									
-								}
-							}
+                                    VertretungsBoy::saveSearch(DBPATH, msg["author"]["id"], arg[1]);
+                                } catch (std::string &error) {
+                                    VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
+                                    return;
+                                }
+                            }
 
                             try {
 								buffer = plan.getEntries(i, arg[1]);
-                            } catch (std::string error) {
+                            } catch (std::string &error) {
 								VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
 								return;
                             }
 
                             if (!buffer.empty()) {
-                                output += "**__" + dates[i].substr(0, dates[i].find(" ")) + "__**\n\n";
+                                output += "**__" + dates[i].substr(0, dates[i].find(' ')) + "__**\n\n";
                                 output += VertretungsBoy::createEntriesString(buffer) + "\n";
                             }
                         }
@@ -108,7 +110,7 @@ int main() {
                     }
                     
                     if(output.size() > 1999) {
-						VertretungsBoy::createErrorMsg(bot, "message to big and developer to lazy to add workaround, sorry :(", msg["channel_id"]);
+						VertretungsBoy::createErrorMsg(bot, "message for " + arg[1] + " to big and developer to lazy to add workaround, sorry :(", msg["channel_id"]);
 						return;
 					}
 					
@@ -117,7 +119,7 @@ int main() {
                 } else if (arg[0] == "update" || arg[0] == "u") {
                     try {
                         plan.update();
-                    } catch (std::string error) {
+                    } catch (std::string &error) {
                         VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                         return;
                     }
@@ -127,7 +129,7 @@ int main() {
                     if (VertretungsBoy::needsUpdate(plan.getDateOfLastUpdate())) {
                         try {
                             plan.update();
-                        } catch (std::string error) {
+                        } catch (std::string &error) {
                             VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                             return;
                         }
@@ -137,7 +139,7 @@ int main() {
 
                     try {
                         dates = plan.getDates();
-                    } catch (std::string error) {
+                    } catch (std::string &error) {
                         VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                         return;
                     }
@@ -147,16 +149,16 @@ int main() {
                     if (!dates.empty()) {
 
 
-                        for (size_t i = 0; i < dates.size(); i++) {
-                            if (dates[i] != "OUTDATED") {
-                                datesString += dates[i] + "\n";
+                        for (const auto &date : dates) {
+                            if (date != "OUTDATED") {
+                                datesString += date + "\n";
                             }
                         }
                     }
 
                     try {
                         datesString += "\nZuletzt aktualisiert am " + VertretungsBoy::time_tToString(plan.getDateOfLastUpdate());
-                    } catch (std::string error) {
+                    } catch (std::string &error) {
                         VertretungsBoy::createErrorMsg(bot, error, msg["channel_id"]);
                         return;
                     }
