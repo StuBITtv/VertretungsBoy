@@ -3,7 +3,7 @@ from plan import Plan
 import datetime
 
 import sys
-if len(sys.argv) < 2:
+if len(sys.argv) < 3:
     sys.exit("no database path or token applied")
 
 
@@ -50,11 +50,7 @@ async def plan_command_date(message):
     for date, info in plan_dates.items():
         content += date + "\n"
 
-    content += "\nZuletzt aktualisiert am " + \
-                str(last_update.day) + "." + \
-                str(last_update.month) + "." + \
-                str(last_update.year) + " " +\
-               "um " + str(last_update.hour) + ":" + str(last_update.minute)
+    content += "\nZuletzt aktualisiert am " + last_update.strftime("%d.%m.%Y") + " um " + last_update.strftime("%H:%M")
 
     await client.send_message(message.channel, content.format(message))
 
