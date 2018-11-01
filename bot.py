@@ -2,9 +2,14 @@ import discord
 from plan import Plan
 import datetime
 
+import sys
+if len(sys.argv) < 2:
+    sys.exit("no database path or token applied")
+
+
 client = discord.Client()
 plan = Plan(
-    "plan.db",
+    sys.argv[1],
     [
         "https://dbg-metzingen.de/vertretungsplan/tage/subst_001.htm",
         "https://dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"
@@ -202,4 +207,4 @@ async def on_ready():
     print(client.user.id)
     print("------")
 
-client.run("token")
+client.run(str(sys.argv[2]))
