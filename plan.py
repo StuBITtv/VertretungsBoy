@@ -13,6 +13,9 @@ def prepare_grade(grade):
     if grade == "Früh":
         return "Frühvertretung"
 
+    if grade == "\xa0":
+        return grade
+
     grade_prefix = grade[0]
 
     result = ""
@@ -41,7 +44,9 @@ def prepare_kind(kind):
 
 
 def prepare_subject(old_subject, new_subject):
-    if new_subject == "---" or new_subject == '\xa0' or new_subject == old_subject:
+    if new_subject == "Früh" and old_subject == "Früh":
+        return '\xa0'
+    elif new_subject == "---" or new_subject == '\xa0' or new_subject == old_subject:
         return old_subject
     else:
         return new_subject + " statt " + old_subject
@@ -49,7 +54,7 @@ def prepare_subject(old_subject, new_subject):
 
 def prepare_room(room):
     if room == "---":
-        return ""
+        return '\xa0'
     else:
         return room
 
@@ -82,8 +87,10 @@ class Plan(HTMLParser):
         super().__init__()
 
     def update(self):
+        db_was_connected = True
         try:
             if self.conn is None:
+                db_was_connected = False
                 self.conn = sqlite3.connect(self.db_path)
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
@@ -113,13 +120,15 @@ class Plan(HTMLParser):
             self.conn.execute("REPLACE INTO dates (side, date) VALUES (\"intern\", ?)", (int(datetime.datetime.now().timestamp()),))
         finally:
             self.conn.commit()
-            self.conn.close()
 
-        self.last_attr = []
-        self.row = []
-        self.current_url = ""
-        self.conn = None
-        self.last_prepared_row = []
+            if not db_was_connected:
+                self.conn.close()
+                self.conn = None
+
+            self.last_attr = []
+            self.row = []
+            self.current_url = ""
+            self.last_prepared_row = []
 
     def handle_starttag(self, tag, attrs):
         if tag == "span":
@@ -178,7 +187,7 @@ class Plan(HTMLParser):
                     else:
                         # region insert new row into table
                         if prepared_row[0] == '\xa0':
-                            prepared_row = self.last_prepared_row[0]
+                            prepared_row[0] = self.last_prepared_row[0]
 
                         self.conn.execute(
                             """
@@ -209,15 +218,9 @@ class Plan(HTMLParser):
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS searches (user_id TEXT UNIQUE, search TEXT)")
 
-            if search is None or len(search) < 1:
-                # region get last search from the user
-                cursor = self.conn.execute("SELECT search FROM searches WHERE user_id == ?", (user_id,))
-
-                search = cursor.fetchone()[0]
-                if search is None or len(search) < 1:
-                    raise PlanError("no last search found")
-                # endregion
-            else:
+            if (search is None or len(search) < 1) and user_id is not None:
+                search = self.get_last_user_search(user_id)
+            elif user_id is not None:
                 # region safe search from into the table
                 parts = search.split()
                 if parts[0][-1] == ":":
@@ -234,33 +237,22 @@ class Plan(HTMLParser):
                 # endregion
 
             # region check for updates
-            self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
-            cursor = self.conn.execute("SELECT date FROM dates WHERE side == \"intern\"")
-
-            update_date = cursor.fetchone()
-            if update_date is None or len(update_date) < 1:
-                self.update()
-                update_date = (datetime.datetime.now().timestamp(),)
-                self.conn = sqlite3.connect(self.db_path)
-
-            update_date = int(update_date[0])
+            update_date = self.get_update_date()
+            update_date = datetime.datetime.utcfromtimestamp(update_date)
 
             for auto_update_time in self.auto_update_times:
                 if (update_date                                         # last update < auto update time < now
-                    < int(
-                            datetime.datetime.strptime(
-                                str(datetime.datetime.now().day) + "." +
-                                str(datetime.datetime.now().month) + "." +
-                                str(datetime.datetime.now().year) + " " +
-                                auto_update_time,
-                                "%d.%m.%Y %H:%M"
-                            ).timestamp()
-                         )
-                    < int(datetime.datetime.now().timestamp())
+                    < datetime.datetime.strptime(
+                            str(datetime.datetime.now().day) + "." +
+                            str(datetime.datetime.now().month) + "." +
+                            str(datetime.datetime.now().year) + " " +
+                            auto_update_time,
+                            "%d.%m.%Y %H:%M"
+                    )
+                    < datetime.datetime.now()
                 ):
                     self.update()
                     update_date = (datetime.datetime.now().timestamp(),)
-                    self.conn = sqlite3.connect(self.db_path)
 
             # endregion
 
@@ -295,27 +287,74 @@ class Plan(HTMLParser):
                 # endregion
 
                 # region get entries
-                search = search.split()
+                if user_id is not None:
+                    search = search.split()
 
-                sql_query = "SELECT * FROM " + quote_identifier(url) + " WHERE grade LIKE ? AND ("
+                    sql_query = "SELECT * FROM " + quote_identifier(url) + " WHERE grade LIKE ? AND ("
 
-                if len(search) > 1:
-                    sql_query += "subjects LIKE ? AND " * (len(search) - 1)
-                    sql_query = sql_query[:-4] + ")"
+                    if len(search) > 1:
+                        sql_query += "subjects LIKE ? AND " * (len(search) - 1)
+                        sql_query = sql_query[:-4] + ")"
+                    else:
+                        sql_query = sql_query[:-5]
+
+                    entries = self.conn.execute(sql_query, search)
+                    entries = entries.fetchall()
                 else:
-                    sql_query = sql_query[:-5]
-
-                entries = self.conn.execute(sql_query, search)
-
-                result[plan_date] = (info, entries.fetchall())
+                    entries = []
                 # endregion
+
+                result[plan_date] = (info, entries)
 
         finally:
             self.conn.close()
-
             self.conn = None
 
         return result
+
+    def get_update_date(self):
+        db_was_connected = True
+
+        try:
+            if self.conn is None:
+                db_was_connected = False
+                self.conn = sqlite3.connect(self.db_path)
+
+            self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
+            cursor = self.conn.execute("SELECT date FROM dates WHERE side == \"intern\"")
+
+            update_date = cursor.fetchone()
+            if update_date is None or len(update_date) < 1:
+                self.update()
+                update_date = (datetime.datetime.now().timestamp(),)
+        finally:
+            if not db_was_connected:
+                self.conn.close()
+                self.conn = None
+
+        return int(update_date[0])
+
+    def get_last_user_search(self, user_id):
+        db_was_connected = True
+
+        try:
+            if self.conn is None:
+                db_was_connected = False
+                self.conn = sqlite3.connect(self.db_path)
+
+            self.conn.execute("CREATE TABLE IF NOT EXISTS searches (user_id TEXT UNIQUE, search TEXT)")
+            search = self.conn.cursor()
+            search.execute("SELECT search FROM searches WHERE user_id == ?", (user_id,))
+
+            search = search.fetchone()
+            if search is None or len(search) < 1:
+                raise PlanError("no last search found")
+        finally:
+            if not db_was_connected:
+                self.conn.close()
+                self.conn = None
+
+        return search[0]
 
 # example
 #
@@ -330,5 +369,7 @@ class Plan(HTMLParser):
 #         "15:00"
 #     ]
 # )
-#
-# print(plan.search(38347, None))
+# print(plan.search(None, ""))
+# print(plan.search(23424, "10a"))
+# print(plan.search(23424, "K2 D1 E3 M2"))
+# print(datetime.datetime.fromtimestamp(plan.get_update_date()))
