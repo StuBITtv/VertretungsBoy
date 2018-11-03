@@ -9,4 +9,4 @@ It expects as first parameter the path to the database. If there is no database,
 For the second parameter it expects the discord bot authentication token.
 
 If your setup is correct, you should now see on discord that the bot is online. 
-Just type ">>" in a chat, where the bot is allowed to answer, to see if its works.
+Just type ">>" in a chat, where the bot is allowed to answer, to see if it works.
