@@ -95,7 +95,7 @@ async def plan_command_info(message):
         content = await add_to_content(message, content, "__**" + key[:key.find(" ")] + "**__\n\n")
 
         if len(entries[key][0]) > 0:
-            content = await add_to_content(message, content, "Nachrichten zum Tag:\n")
+            content = await add_to_content(message, content, "Info zum Tag:\n")
 
             for info in entries[key][0]:
                 content = await add_to_content(message, content, "- " + info[0] + "\n")
@@ -133,7 +133,7 @@ async def plan_command_info(message):
                 content = await add_to_content(message, content, "\n")
 
         else:
-            content = await add_to_content(message, content, "Nope, nichts da für `" + search + "` :neutral_face:")
+            content = await add_to_content(message, content, "Nope, nichts da für `" + search + "` :neutral_face:\n\n")
 
     await client.send_message(message.channel, content.format(message))
 
@@ -165,7 +165,7 @@ async def on_message(message):
                 "Befehle werden durch `>>` am Anfang gekennzeichnet, " +
                 "alle weitere Parameter werden durch Leerzeichen getrennt. " +
                 "Groß- und Kleinschreibung wird nicht beachtet.\n\n" +
-                "`i` oder `info`:\n" +
+                "`i` oder `info`\n" +
                 "Zeigt die Einträge in der Datenbank, die deiner Suche entsprechen und die Info zum Tag an. " +
                 "Als Paramter kann zuerst eine Klasse angegeben werden und " +
                 "danach all die Fächer, nach denen ausschließlich gesucht werden soll. " +

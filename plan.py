@@ -236,6 +236,8 @@ class Plan(HTMLParser):
                 self.conn.commit()
                 # endregion
 
+            search = search.split()
+
             # region check for updates
             update_date = self.get_update_date()
             update_date = datetime.datetime.utcfromtimestamp(update_date)
@@ -288,8 +290,6 @@ class Plan(HTMLParser):
 
                 # region get entries
                 if user_id is not None:
-                    search = search.split()
-
                     sql_query = "SELECT * FROM " + quote_identifier(url) + " WHERE grade LIKE ? AND ("
 
                     if len(search) > 1:
