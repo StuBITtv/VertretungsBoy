@@ -28,14 +28,14 @@ async def plan_error_catcher(message, run):
         if error.args[0] == "no last search found":
             error_msg += "\n\n"
             error_msg += "**Wahrscheinlich hast du einfach noch nie nach etwas gesucht**.\n"
-            error_msg += "Gib einfach nach den Befehl deine Suche ein, "
+            error_msg += "Gib einfach nach den Befehl ein Leerzeichen und deine Suche ein, "
             error_msg += "dann musst du sie beim nächsten Mal nicht mehr eingeben :blush:\n"
             error_msg += "Wenn du noch mehr Hilfe brauchst, benutze `h` oder `help` um dir die Hilfe anzeigen zu lassen.\n"
             error_msg += "Falls du danach immer noch Probleme hast, melde dich einfach bei mir :relaxed:\n"
 
         await client.send_message(
             message.channel,
-            error_msg.format(message)
+            error_msg
         )
 
 
@@ -43,7 +43,7 @@ async def plan_command_update(message):
     plan.update()
     await client.send_message(
         message.channel,
-        "Fertig, alles aktualisiert :blush:".format(message)
+        "Fertig, alles aktualisiert :blush:"
     )
 
 
@@ -62,12 +62,12 @@ async def plan_command_date(message):
 
     content += "\nZuletzt aktualisiert am " + last_update.strftime("%d.%m.%Y") + " um " + last_update.strftime("%H:%M")
 
-    await client.send_message(message.channel, content.format(message))
+    await client.send_message(message.channel, content)
 
 
 async def add_to_content(message, content, add):
-    if len(content) > 1900:
-        await client.send_message(message.channel, content.format(message))
+    if len(content) + len(add) > 2000:
+        await client.send_message(message.channel, content)
         if content[-2:] == "\n\n":
             content = "​\n"     # with zero white space
         else:
@@ -105,7 +105,7 @@ async def plan_command_info(message):
         if len(entries[key][1]) > 0:
             for row in entries[key][1]:
                 if row[0] != "\xa0":
-                    if row[0] == "Frühvertretung":
+                    if row[0] == "Frühvertretung" or row[0][-2:] == "AG":
                         content = await add_to_content(message, content, "**" + row[0] + "**\n")
                     elif row[0].find(",") > 0:
                         content = await add_to_content(message, content, "**Klassen:    " + row[0] + "**\n")
@@ -135,7 +135,7 @@ async def plan_command_info(message):
         else:
             content = await add_to_content(message, content, "Nope, nichts da für `" + search + "` :neutral_face:\n\n")
 
-    await client.send_message(message.channel, content.format(message))
+    await client.send_message(message.channel, content)
 
 
 @client.event
@@ -156,7 +156,7 @@ async def on_message(message):
                 message.channel,
                 "Brauchst du Hilfe?\n" +
                 "Dann benutze den Befehle `h` oder `help`, um dir die Hilfe anzeigen zu lassen :blush:"
-                .format(message))
+            )
 
         elif command == "h" or command == "help":
             await client.send_message(
@@ -179,7 +179,7 @@ async def on_message(message):
                 "Zeigt die Datums zu den Plänen in der Datenbank an " +
                 "und wann die Datenbank zuletzt aktualisiert worden ist.\n\n" +
                 "`h` oder `help`\n" +
-                "Zeigt diese Hilfe, offensichtlich :joy:".format(message)
+                "Zeigt diese Hilfe, offensichtlich :joy:"
             )
         elif command == "u" or command == "update":
             await plan_error_catcher(

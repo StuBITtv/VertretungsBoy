@@ -131,10 +131,8 @@ class Plan(HTMLParser):
             self.last_prepared_row = []
 
     def handle_starttag(self, tag, attrs):
-        if tag == "span":
-            pass
-
-        self.last_attr = attrs
+        if tag != "span":
+            self.last_attr = attrs
 
     def handle_endtag(self, tag):
         if tag == "tr" or tag == "div":
@@ -154,7 +152,7 @@ class Plan(HTMLParser):
                     self.conn.execute("INSERT INTO dates (side, date) VALUES (?, ?)", (self.current_url, self.row[0]))
                     # endregion
 
-                elif self.last_attr[0][1] == "list":
+                elif self.last_attr[0][1] == "list" and len(self.row) == 7:
                     prepared_row = [
                         prepare_grade(self.row[0]),
                         self.row[1],
@@ -164,7 +162,7 @@ class Plan(HTMLParser):
                         self.row[6]
                     ]
 
-                    if prepared_row[:5] == ['\xa0', '\xa0', '\xa0', '\xa0', '\xa0', '\xa0']:
+                    if prepared_row[:5] == ['\xa0', '\xa0', '\xa0', '\xa0', '\xa0']:
                         # region completes text at the previous row in the table
                         self.conn.execute(
                             """
@@ -188,6 +186,13 @@ class Plan(HTMLParser):
                         # region insert new row into table
                         if prepared_row[0] == '\xa0':
                             prepared_row[0] = self.last_prepared_row[0]
+
+                        if prepared_row[0] == "AG":
+                            if prepared_row[3] == "Klettern":
+                                prepared_row[3] = "Kletter"
+
+                            prepared_row[0] = prepared_row[3] + " AG"
+                            prepared_row[3] = '\xa0'
 
                         self.conn.execute(
                             """
@@ -218,25 +223,26 @@ class Plan(HTMLParser):
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS searches (user_id TEXT UNIQUE, search TEXT)")
 
-            if (search is None or len(search) < 1) and user_id is not None:
-                search = self.get_last_user_search(user_id)
-            elif user_id is not None:
-                # region safe search from into the table
-                parts = search.split()
-                if parts[0][-1] == ":":
-                    parts[0] = parts[0][:-1]
-                search = ""
+            if user_id is not None:
+                if (search is None or len(search) < 1):
+                    search = self.get_last_user_search(user_id)
+                else:
+                    # region safe search from into the table
+                    parts = search.split()
+                    if parts[0][-1] == ":":
+                        parts[0] = parts[0][:-1]
+                    search = ""
 
-                for part in parts:
-                    search += "%" + part + "% "
+                    for part in parts:
+                        search += "%" + part + "% "
 
-                search = search[:-1]
+                    search = search[:-1]
 
-                self.conn.execute("REPLACE INTO searches (user_id, search) VALUES (?, ?)", (user_id, search))
-                self.conn.commit()
-                # endregion
+                    self.conn.execute("REPLACE INTO searches (user_id, search) VALUES (?, ?)", (user_id, search))
+                    self.conn.commit()
+                    # endregion
 
-            search = search.split()
+                search = search.split()
 
             # region check for updates
             update_date = self.get_update_date()
@@ -254,7 +260,7 @@ class Plan(HTMLParser):
                     < datetime.datetime.now()
                 ):
                     self.update()
-                    update_date = (datetime.datetime.now().timestamp(),)
+                    update_date = datetime.datetime.now()
 
             # endregion
 
@@ -271,14 +277,11 @@ class Plan(HTMLParser):
 
                 plan_date = plan_date[0]
 
-                if int(
-                        datetime.datetime(
-                            datetime.datetime.now().year,
-                            datetime.datetime.now().month,
-                            datetime.datetime.now().day
-                        ).timestamp() >
-                        datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y").timestamp()
-                ):
+                if datetime.datetime(
+                        datetime.datetime.now().year,
+                        datetime.datetime.now().month,
+                        datetime.datetime.now().day
+                   ) > datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y"):
                     continue
 
                 # endregion
