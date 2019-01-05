@@ -206,6 +206,11 @@ async def on_message(message):
 
 
 @client.event
+async def on_message_edit(before, after):
+    await on_message(after)
+
+
+@client.event
 async def on_ready():
     print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     print("Logged in as")
