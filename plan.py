@@ -39,6 +39,8 @@ def prepare_kind(kind):
         return "Vertretung ohne Lehrer"
     elif kind == "Raumänd.":
         return "Raumänderung"
+    elif kind == "Sondereins.":
+        return "Sondereinsatz"
 
     return kind
 
@@ -48,6 +50,8 @@ def prepare_subject(old_subject, new_subject):
         return '\xa0'
     elif new_subject == "---" or new_subject == '\xa0' or new_subject == old_subject:
         return old_subject
+    elif old_subject == "---" or old_subject == '\xa0':
+        return new_subject
     else:
         return new_subject + " statt " + old_subject
 
