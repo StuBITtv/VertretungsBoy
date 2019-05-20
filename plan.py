@@ -1,8 +1,11 @@
+# coding=utf-8
 import requests
 import codecs
 from html.parser import HTMLParser
-import sqlite3
+from pysqlcipher3 import dbapi2 as sqlCipher
 import datetime
+
+KEY = ""
 
 
 class PlanError(Exception):
@@ -79,6 +82,9 @@ def quote_identifier(s, errors="strict"):
 
 
 class Plan(HTMLParser):
+    def error(self, message):
+        pass
+
     def __init__(self, db_path, urls, auto_update_times):
         self.db_path = db_path
         self.auto_update_times = auto_update_times
@@ -95,7 +101,8 @@ class Plan(HTMLParser):
         try:
             if self.conn is None:
                 db_was_connected = False
-                self.conn = sqlite3.connect(self.db_path)
+                self.conn = sqlCipher.connect(self.db_path)
+                self.conn.execute('pragma key="' + KEY + '"')
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
             self.conn.execute("CREATE TABLE IF NOT EXISTS info (side TEXT, info TEXT)")
@@ -121,6 +128,7 @@ class Plan(HTMLParser):
 
                 self.feed(codecs.decode(website.content, website.encoding))
 
+            # noinspection SqlResolve
             self.conn.execute("REPLACE INTO dates (side, date) VALUES (\"intern\", ?)", (int(datetime.datetime.now().timestamp()),))
         finally:
             self.conn.commit()
@@ -223,12 +231,13 @@ class Plan(HTMLParser):
         result = {}
 
         try:
-            self.conn = sqlite3.connect(self.db_path)
+            self.conn = sqlCipher.connect(self.db_path)
+            self.conn.execute('pragma key="' + KEY + '"')
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS searches (user_id TEXT UNIQUE, search TEXT)")
 
             if user_id is not None:
-                if (search is None or len(search) < 1):
+                if search is None or len(search) < 1:
                     search = self.get_last_user_search(user_id)
                 else:
                     # region safe search from into the table
@@ -325,9 +334,11 @@ class Plan(HTMLParser):
         try:
             if self.conn is None:
                 db_was_connected = False
-                self.conn = sqlite3.connect(self.db_path)
+                self.conn = sqlCipher.connect(self.db_path)
+                self.conn.execute('pragma key="' + KEY + '"')
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
+            # noinspection SqlResolve
             cursor = self.conn.execute("SELECT date FROM dates WHERE side == \"intern\"")
 
             update_date = cursor.fetchone()
@@ -347,7 +358,8 @@ class Plan(HTMLParser):
         try:
             if self.conn is None:
                 db_was_connected = False
-                self.conn = sqlite3.connect(self.db_path)
+                self.conn = sqlCipher.connect(self.db_path)
+                self.conn.execute('pragma key="' + KEY + '"')
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS searches (user_id TEXT UNIQUE, search TEXT)")
             search = self.conn.cursor()
@@ -364,7 +376,8 @@ class Plan(HTMLParser):
         return search[0]
 
 # example
-#
+
+
 # plan = Plan(
 #     "plan.db",
 #     [
