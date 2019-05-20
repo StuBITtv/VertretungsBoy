@@ -1,4 +1,3 @@
-# coding=utf-8
 import requests
 import codecs
 from html.parser import HTMLParser
@@ -14,7 +13,7 @@ class PlanError(Exception):
 
 def prepare_grade(grade):
     if grade == "Früh":
-        return "Frühvertretung"
+        return " Frühvertretung "
 
     if grade == "\xa0":
         return grade
@@ -32,7 +31,7 @@ def prepare_grade(grade):
         else:
             result += grade_prefix + token + ", "
 
-    return result[:-2]
+    return " " + result[:-2] + " "
 
 
 def prepare_kind(kind):
@@ -52,11 +51,11 @@ def prepare_subject(old_subject, new_subject):
     if new_subject == "Früh" and old_subject == "Früh":
         return '\xa0'
     elif new_subject == "---" or new_subject == '\xa0' or new_subject == old_subject:
-        return old_subject
+        return " " + old_subject + " "
     elif old_subject == "---" or old_subject == '\xa0':
-        return new_subject
+        return " " + new_subject + " "
     else:
-        return new_subject + " statt " + old_subject
+        return " " + new_subject + " statt " + old_subject + " "
 
 
 def prepare_room(room):
@@ -82,9 +81,6 @@ def quote_identifier(s, errors="strict"):
 
 
 class Plan(HTMLParser):
-    def error(self, message):
-        pass
-
     def __init__(self, db_path, urls, auto_update_times):
         self.db_path = db_path
         self.auto_update_times = auto_update_times
@@ -241,21 +237,13 @@ class Plan(HTMLParser):
                     search = self.get_last_user_search(user_id)
                 else:
                     # region safe search from into the table
-                    parts = search.split()
-                    if parts[0][-1] == ":":
-                        parts[0] = parts[0][:-1]
-                    search = ""
-
-                    for part in parts:
-                        search += "%" + part + "% "
-
-                    search = search[:-1]
-
                     self.conn.execute("REPLACE INTO searches (user_id, search) VALUES (?, ?)", (user_id, search))
                     self.conn.commit()
                     # endregion
 
                 search = search.split()
+                for i in range(0, len(search)):
+                    search[i] = "% " + search[i] + " %"
 
             # region check for updates
             update_date = self.get_update_date()
@@ -309,8 +297,8 @@ class Plan(HTMLParser):
                     sql_query = "SELECT * FROM " + quote_identifier(url) + " WHERE grade LIKE ? AND ("
 
                     if len(search) > 1:
-                        sql_query += "subjects LIKE ? AND " * (len(search) - 1)
-                        sql_query = sql_query[:-4] + ")"
+                        sql_query += "subjects LIKE ? OR " * (len(search) - 1)
+                        sql_query = sql_query[:-3] + ")"
                     else:
                         sql_query = sql_query[:-5]
 
@@ -376,8 +364,7 @@ class Plan(HTMLParser):
         return search[0]
 
 # example
-
-
+#
 # plan = Plan(
 #     "plan.db",
 #     [
@@ -391,5 +378,5 @@ class Plan(HTMLParser):
 # )
 # print(plan.search(None, ""))
 # print(plan.search(23424, "10a"))
-# print(plan.search(23424, "K2 D1 E3 M2"))
+# print(plan.search(23424, "K2 L ev2"))
 # print(datetime.datetime.fromtimestamp(plan.get_update_date()))
