@@ -242,7 +242,9 @@ class Plan(HTMLParser):
                     # endregion
 
                 search = search.split()
-                for i in range(0, len(search)):
+                search[0] = "%" + search[0] + "%"
+
+                for i in range(1, len(search)):
                     search[i] = "% " + search[i] + " %"
 
             # region check for updates
