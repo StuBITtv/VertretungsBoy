@@ -74,6 +74,10 @@ async def add_to_content(message, content, add):
     return content + add
 
 
+def string_empty(string):
+    return string == '   ' or string == '\xa0'
+
+
 async def plan_command_info(message):
     search = message.content[2:].lstrip()
 
@@ -102,7 +106,7 @@ async def plan_command_info(message):
 
         if len(entries[key][1]) > 0:
             for row in entries[key][1]:
-                if row[0] != "\xa0":
+                if not string_empty(row[0]):
                     if row[0] == "Frühvertretung" or row[0][-2:] == "AG":
                         content = await add_to_content(message, content, "**" + row[0] + "**\n")
                     elif row[0].find(",") > 0:
@@ -110,22 +114,22 @@ async def plan_command_info(message):
                     else:
                         content = await add_to_content(message, content, "**Klasse:      " + row[0] + "**\n")
 
-                if row[1] != "\xa0":
+                if not string_empty(row[1]):
                     if row[1].find("-") > 0:
                         content = await add_to_content(message, content, "Stunden:    " + row[1] + "\n")
                     else:
                         content = await add_to_content(message, content, "Stunde:      " + row[1] + "\n")
 
-                if row[2] != "\xa0":
+                if not string_empty(row[2]):
                     content = await add_to_content(message, content, "Art:             " + row[2] + "\n")
 
-                if row[3] != "\xa0":
+                if not string_empty(row[3]):
                     content = await add_to_content(message, content, "Fach:         " + row[3] + "\n")
 
-                if row[4] != "\xa0":
+                if not string_empty(row[4]):
                     content = await add_to_content(message, content, "Raum:        " + row[4] + "\n")
 
-                if row[5] != "\xa0":
+                if not string_empty(row[5]):
                     content = await add_to_content(message, content, "Text:          " + row[5] + "\n")
 
                 content = await add_to_content(message, content, "\n")
