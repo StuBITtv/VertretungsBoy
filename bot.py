@@ -33,16 +33,14 @@ async def plan_error_catcher(message, run):
             error_msg += "Wenn du noch mehr Hilfe brauchst, benutze `h` oder `help` um dir die Hilfe anzeigen zu lassen.\n"
             error_msg += "Falls du danach immer noch Probleme hast, melde dich einfach bei mir :relaxed:\n"
 
-        await client.send_message(
-            message.channel,
+        await message.channel.send(
             error_msg
         )
 
 
 async def plan_command_update(message):
     plan.update()
-    await client.send_message(
-        message.channel,
+    await message.channel.send(
         "Fertig, alles aktualisiert :blush:"
     )
 
@@ -62,12 +60,12 @@ async def plan_command_date(message):
 
     content += "\nZuletzt aktualisiert am " + last_update.strftime("%d.%m.%Y") + " um " + last_update.strftime("%H:%M")
 
-    await client.send_message(message.channel, content)
+    await message.channel.send(content)
 
 
 async def add_to_content(message, content, add):
     if len(content) + len(add) > 2000:
-        await client.send_message(message.channel, content)
+        await message.channel.send(content)
         if content[-2:] == "\n\n":
             content = "​\n"     # with zero white space
         else:
@@ -108,9 +106,9 @@ async def plan_command_info(message):
                     if row[0] == "Frühvertretung" or row[0][-2:] == "AG":
                         content = await add_to_content(message, content, "**" + row[0] + "**\n")
                     elif row[0].find(",") > 0:
-                        content = await add_to_content(message, content, "**Klassen:    " + row[0] + "**\n")
+                        content = await add_to_content(message, content, "**Klassen:   " + row[0] + "**\n")
                     else:
-                        content = await add_to_content(message, content, "**Klasse:       " + row[0] + "**\n")
+                        content = await add_to_content(message, content, "**Klasse:      " + row[0] + "**\n")
 
                 if row[1] != "\xa0":
                     if row[1].find("-") > 0:
@@ -122,7 +120,7 @@ async def plan_command_info(message):
                     content = await add_to_content(message, content, "Art:             " + row[2] + "\n")
 
                 if row[3] != "\xa0":
-                    content = await add_to_content(message, content, "Fach:          " + row[3] + "\n")
+                    content = await add_to_content(message, content, "Fach:         " + row[3] + "\n")
 
                 if row[4] != "\xa0":
                     content = await add_to_content(message, content, "Raum:        " + row[4] + "\n")
@@ -135,7 +133,7 @@ async def plan_command_info(message):
         else:
             content = await add_to_content(message, content, "Nope, nichts da für `" + search + "` :neutral_face:\n\n")
 
-    await client.send_message(message.channel, content)
+    await message.channel.send(content)
 
 
 @client.event
@@ -152,15 +150,13 @@ async def on_message(message):
             command = command[:command.find(" ")]
 
         if len(command) < 1:
-            await client.send_message(
-                message.channel,
+            await message.channel.send(
                 "Brauchst du Hilfe?\n" +
                 "Dann benutze den Befehle `h` oder `help`, um dir die Hilfe anzeigen zu lassen :blush:"
             )
 
         elif command == "h" or command == "help":
-            await client.send_message(
-                message.channel,
+            await message.channel.send(
                 "__**Befehle**__:\n\n" +
                 "Befehle werden durch `>>` am Anfang gekennzeichnet, " +
                 "alle weitere Parameter werden durch Leerzeichen getrennt. " +
@@ -198,8 +194,7 @@ async def on_message(message):
                 plan_command_info
             )
         else:
-            await client.send_message(
-                message.channel,
+            await message.channel.send(
                 "Neee, `" + command + "` ist definitiv kein Befehl... :thinking:\n" +
                 "Versuch mal `h` oder `help`, dann wird dir die Hilfe angezeigt :relaxed:"
             )

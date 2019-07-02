@@ -1,3 +1,4 @@
+import pytz
 import requests
 import codecs
 from html.parser import HTMLParser
@@ -250,20 +251,24 @@ class Plan(HTMLParser):
             # region check for updates
             update_date = self.get_update_date()
             update_date = datetime.datetime.utcfromtimestamp(update_date)
+            update_date = pytz.utc.localize(update_date)
 
             for auto_update_time in self.auto_update_times:
-                if (update_date                                         # last update < auto update time < now
-                    < datetime.datetime.strptime(
-                            str(datetime.datetime.now().day) + "." +
-                            str(datetime.datetime.now().month) + "." +
-                            str(datetime.datetime.now().year) + " " +
-                            auto_update_time,
-                            "%d.%m.%Y %H:%M"
-                    )
-                    < datetime.datetime.now()
-                ):
+                auto_update_time = datetime.datetime.strptime(
+                    str(datetime.datetime.now().day) + "." +
+                    str(datetime.datetime.now().month) + "." +
+                    str(datetime.datetime.now().year) + " " +
+                    auto_update_time,
+                    "%d.%m.%Y %H:%M"
+                )
+
+                auto_update_time = pytz.timezone('Europe/Berlin').localize(auto_update_time)
+                now = pytz.utc.localize(datetime.datetime.now())
+
+                if update_date < auto_update_time < now:
                     self.update()
                     update_date = datetime.datetime.now()
+                    update_date = pytz.utc.localize(update_date)
 
             # endregion
 
@@ -280,11 +285,11 @@ class Plan(HTMLParser):
 
                 plan_date = plan_date[0]
 
-                if datetime.datetime(
+                if datetime.datetime(   # Today at 0:00
                         datetime.datetime.now().year,
                         datetime.datetime.now().month,
                         datetime.datetime.now().day
-                   ) > datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y"):
+                   ) > datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y"): # Date of plan at 0:00
                     continue
 
                 # endregion
