@@ -1,4 +1,6 @@
 import discord
+import pytz
+
 from plan import Plan
 import datetime
 
@@ -48,6 +50,7 @@ async def plan_command_update(message):
 async def plan_command_date(message):
     last_update = plan.get_update_date()
     last_update = datetime.datetime.utcfromtimestamp(last_update)
+    last_update = pytz.utc.localize(last_update, is_dst=None).astimezone(pytz.timezone('Europe/Berlin'))
     plan_dates = plan.search(None, None)
 
     content = ""

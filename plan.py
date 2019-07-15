@@ -93,6 +93,19 @@ class Plan(HTMLParser):
         self.last_prepared_row = []
         super().__init__()
 
+    def get_database(self):
+        self.conn = sqlCipher.connect(self.db_path)
+        self.conn.execute('pragma key="' + KEY + '"')
+        return self.conn
+
+    def close_database(self):
+        self.conn.close()
+        self.conn = None
+
+    @staticmethod
+    def localize_time(time):
+        return pytz.timezone('Europe/Berlin').localize((time))
+
     def update(self):
         db_was_connected = True
         try:
@@ -262,7 +275,7 @@ class Plan(HTMLParser):
                     "%d.%m.%Y %H:%M"
                 )
 
-                auto_update_time = pytz.timezone('Europe/Berlin').localize(auto_update_time)
+                auto_update_time = self.localize_time(datetime.datetime.now())
                 now = pytz.utc.localize(datetime.datetime.now())
 
                 if update_date < auto_update_time < now:
