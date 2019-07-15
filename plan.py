@@ -302,7 +302,7 @@ class Plan(HTMLParser):
                         datetime.datetime.now().year,
                         datetime.datetime.now().month,
                         datetime.datetime.now().day
-                   ) > datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y"): # Date of plan at 0:00
+                   ) > datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y"):   # Date of plan at 0:00
                     continue
 
                 # endregion

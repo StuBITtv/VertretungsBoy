@@ -1,3 +1,6 @@
+import sys
+from asyncio import sleep
+
 import discord
 import pytz
 
@@ -219,5 +222,31 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print("------")
+
+
+async def subscriptions():
+    plan.get_database().execute("CREATE TABLE IF NOT EXISTS subscriptions (user INTEGER UNIQUE, time INTEGER, last INTEGER)")
+    subscribers = plan.get_database().execute("SELECT user FROM subscriptions")
+
+    if subscribers is not None:
+        for subscriber in subscribers:
+            # check if subscription from today or yesterday is not handled yet
+            pass
+    else:
+        return  # No subscriptions left, stop service
+
+    while True:
+        # get next subscriptions to be handled
+        now = pytz.timezone('Europe/Berlin').localize(datetime.datetime.now())
+        next_subscriptions = plan.get_database().execute("SELECT user, time FROM subscriptions WHERE time > " + str(now.hour * 100 + now.minute))
+
+        if next_subscriptions is None:
+            break   # No subscriptions left, stop service
+
+        plan.close_database()
+        # sleep() wait until next subscriptions needs to be handled
+        # send private message to users
+
+client.loop.create_task(subscriptions())
 
 client.run(str(sys.argv[2]))
