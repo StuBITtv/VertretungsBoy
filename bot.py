@@ -1,5 +1,5 @@
 import sys
-from asyncio import sleep
+from asyncio import sleep, Lock
 
 import discord
 import pytz
@@ -44,17 +44,17 @@ async def plan_error_catcher(message, run):
 
 
 async def plan_command_update(message):
-    plan.update()
+    await plan.update()
     await message.channel.send(
         "Fertig, alles aktualisiert :blush:"
     )
 
 
 async def plan_command_date(message):
-    last_update = plan.get_update_date()
+    last_update = await plan.get_update_date()
     last_update = datetime.datetime.utcfromtimestamp(last_update)
     last_update = pytz.utc.localize(last_update, is_dst=None).astimezone(pytz.timezone('Europe/Berlin'))
-    plan_dates = plan.search(None, None)
+    plan_dates = await plan.search(None, None)
 
     content = ""
 
@@ -92,12 +92,13 @@ async def plan_command_info(message):
     else:
         search = ""
 
-    entries = plan.search(message.author.id, search)
+    entries = await plan.search(message.author.id, search)
 
     content = ""
 
     if len(search) < 1:
-        search = plan.get_last_user_search(message.author.id).replace("%", "")
+        search = await plan.get_last_user_search(message.author.id)
+        search = search.replace("%", "")
 
     for key in entries.keys():
         content = await add_to_content(message, content, "__**" + key[:key.find(" ")] + "**__\n\n")

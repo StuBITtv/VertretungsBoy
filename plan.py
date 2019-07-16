@@ -1,3 +1,5 @@
+from asyncio import Lock
+
 import pytz
 import requests
 import codecs
@@ -91,28 +93,33 @@ class Plan(HTMLParser):
         self.current_url = ""
         self.conn = None
         self.last_prepared_row = []
+        self.db_mutex = Lock()
         super().__init__()
 
-    def get_database(self):
+    async def get_database(self):
+        await self.db_mutex.acquire()
         self.conn = sqlCipher.connect(self.db_path)
         self.conn.execute('pragma key="' + KEY + '"')
         return self.conn
 
     def close_database(self):
         self.conn.close()
-        self.conn = None
+        self.db_mutex.release()
 
     @staticmethod
     def localize_time(time):
         return pytz.timezone('Europe/Berlin').localize((time))
 
-    def update(self):
-        db_was_connected = True
+    async def run_database_operation(self, run, *args):
+        self.close_database()
         try:
-            if self.conn is None:
-                db_was_connected = False
-                self.conn = sqlCipher.connect(self.db_path)
-                self.conn.execute('pragma key="' + KEY + '"')
+            return await run(*args)
+        finally:
+            await self.get_database()
+
+    async def update(self):
+        try:
+            await self.get_database()
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
             self.conn.execute("CREATE TABLE IF NOT EXISTS info (side TEXT, info TEXT)")
@@ -142,10 +149,7 @@ class Plan(HTMLParser):
             self.conn.execute("REPLACE INTO dates (side, date) VALUES (\"intern\", ?)", (int(datetime.datetime.now().timestamp()),))
         finally:
             self.conn.commit()
-
-            if not db_was_connected:
-                self.conn.close()
-                self.conn = None
+            self.close_database()
 
             self.last_attr = []
             self.row = []
@@ -237,18 +241,17 @@ class Plan(HTMLParser):
                 if data != '\r\n':
                     self.row.append(data)
 
-    def search(self, user_id, search):
+    async def search(self, user_id, search):
         result = {}
 
         try:
-            self.conn = sqlCipher.connect(self.db_path)
-            self.conn.execute('pragma key="' + KEY + '"')
+            await self.get_database()
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS searches (user_id TEXT UNIQUE, search TEXT)")
 
             if user_id is not None:
                 if search is None or len(search) < 1:
-                    search = self.get_last_user_search(user_id)
+                    search = await self.run_database_operation(self.get_last_user_search, user_id)
                 else:
                     # region safe search from into the table
                     self.conn.execute("REPLACE INTO searches (user_id, search) VALUES (?, ?)", (user_id, search))
@@ -262,7 +265,7 @@ class Plan(HTMLParser):
                     search[i] = "% " + search[i] + " %"
 
             # region check for updates
-            update_date = self.get_update_date()
+            update_date = await self.run_database_operation(self.get_update_date)
             update_date = datetime.datetime.utcfromtimestamp(update_date)
             update_date = pytz.utc.localize(update_date)
 
@@ -275,11 +278,11 @@ class Plan(HTMLParser):
                     "%d.%m.%Y %H:%M"
                 )
 
-                auto_update_time = self.localize_time(datetime.datetime.now())
+                auto_update_time = self.localize_time(auto_update_time)
                 now = pytz.utc.localize(datetime.datetime.now())
 
                 if update_date < auto_update_time < now:
-                    self.update()
+                    await self.run_database_operation(self.update)
                     update_date = datetime.datetime.now()
                     update_date = pytz.utc.localize(update_date)
 
@@ -298,11 +301,11 @@ class Plan(HTMLParser):
 
                 plan_date = plan_date[0]
 
-                if datetime.datetime(   # Today at 0:00
+                if datetime.datetime(  # Today at 0:00
                         datetime.datetime.now().year,
                         datetime.datetime.now().month,
                         datetime.datetime.now().day
-                   ) > datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y"):   # Date of plan at 0:00
+                ) > datetime.datetime.strptime(plan_date[:plan_date.find(" ")], "%d.%m.%Y"):  # Date of plan at 0:00
                     continue
 
                 # endregion
@@ -331,43 +334,29 @@ class Plan(HTMLParser):
                 result[plan_date] = (info, entries)
 
         finally:
-            self.conn.close()
-            self.conn = None
+            self.close_database()
 
         return result
 
-    def get_update_date(self):
-        db_was_connected = True
-
+    async def get_update_date(self):
         try:
-            if self.conn is None:
-                db_was_connected = False
-                self.conn = sqlCipher.connect(self.db_path)
-                self.conn.execute('pragma key="' + KEY + '"')
-
+            await self.get_database()
             self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
             # noinspection SqlResolve
             cursor = self.conn.execute("SELECT date FROM dates WHERE side == \"intern\"")
 
             update_date = cursor.fetchone()
             if update_date is None or len(update_date) < 1:
-                self.update()
+                await self.run_database_operation(self.update)
                 update_date = (datetime.datetime.now().timestamp(),)
         finally:
-            if not db_was_connected:
-                self.conn.close()
-                self.conn = None
+            self.close_database()
 
         return int(update_date[0])
 
-    def get_last_user_search(self, user_id):
-        db_was_connected = True
-
+    async def get_last_user_search(self, user_id):
         try:
-            if self.conn is None:
-                db_was_connected = False
-                self.conn = sqlCipher.connect(self.db_path)
-                self.conn.execute('pragma key="' + KEY + '"')
+            await self.get_database()
 
             self.conn.execute("CREATE TABLE IF NOT EXISTS searches (user_id TEXT UNIQUE, search TEXT)")
             search = self.conn.cursor()
@@ -377,9 +366,7 @@ class Plan(HTMLParser):
             if search is None or len(search) < 1:
                 raise PlanError("no last search found")
         finally:
-            if not db_was_connected:
-                self.conn.close()
-                self.conn = None
+            self.close_database()
 
         return search[0]
 
