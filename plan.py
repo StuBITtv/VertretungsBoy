@@ -108,7 +108,7 @@ class Plan(HTMLParser):
 
     @staticmethod
     def localize_time(time):
-        return pytz.timezone('Europe/Berlin').localize((time))
+        return pytz.timezone('Europe/Berlin').localize(time)
 
     async def run_database_operation(self, run, *args):
         self.close_database()

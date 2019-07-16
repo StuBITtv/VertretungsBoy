@@ -1,5 +1,4 @@
 import sys
-from asyncio import sleep, Lock
 
 import discord
 import pytz
@@ -10,7 +9,6 @@ import datetime
 import sys
 if len(sys.argv) < 3:
     sys.exit("no database path or token applied")
-
 
 client = discord.Client()
 plan = Plan(
@@ -27,8 +25,8 @@ async def plan_error_catcher(message, run):
     try:
         await run(message)
     except Exception as error:
-        error_msg =  "Ooops, das hat wohl nicht funktioniert :no_mouth:\n\n" +\
-                     "`" + error.args[0] + "`"
+        error_msg = "Ooops, das hat wohl nicht funktioniert :no_mouth:\n\n" + \
+                    "`" + error.args[0] + "`"
 
         if error.args[0] == "no last search found":
             error_msg += "\n\n"
@@ -73,7 +71,7 @@ async def add_to_content(message, content, add):
     if len(content) + len(add) > 2000:
         await message.channel.send(content)
         if content[-2:] == "\n\n":
-            content = "​\n"     # with zero white space
+            content = "​\n"  # with zero white space
         else:
             content = "​"
 
@@ -147,6 +145,116 @@ async def plan_command_info(message):
     await message.channel.send(content)
 
 
+def replace_last_comma(string):
+    pos = string.rfind(",")
+    return string[:pos] + " und " + string[pos + 1:]
+
+
+async def plan_command_subscribe(message):
+    times = message.content[2:].lstrip()
+    times = times.split()
+    times = times[1:]
+
+    try:
+        db = await plan.get_database()
+        db.execute("CREATE TABLE IF NOT EXISTS subscriptions (user INTEGER, time INTEGER, last INTEGER)")
+
+        if len(times) == 0:
+            db.execute("DELETE FROM subscriptions WHERE user == " + str(message.author.id) + ";")
+            db.commit()
+            await message.channel.send("Okay, keine Benachrichtigungen mehr für dich :slight_smile:")
+
+        else:
+            # region check if last search is available
+            plan.close_database()
+            try:
+                last_search = await plan.get_last_user_search(message.author.id)
+            finally:
+                db = await plan.get_database()
+            # endregion
+
+            # region get valid times
+            invalid_times = []
+            valid_times = []
+
+            for time in times:
+                try:
+                    time = plan.localize_time(datetime.datetime.strptime(time, "%H:%M"))
+                    valid_times.append(time)
+                except Exception as error:
+                    if error.args[0] == "time data '" + time + "' does not match format '%H:%M'"\
+                            or error.args[0][:24] == "unconverted data remains":
+                        invalid_times.append(time)
+                    else:
+                        raise error
+
+            # endregion
+
+            if len(valid_times) == 0:
+                await message.channel.send("Du hast keine korrekte Zeit angegeben. Deswegen wird nichts an deinem Abo verändert")
+            else:
+                # region save to times to database
+                db.execute("DELETE FROM subscriptions WHERE user == " + str(message.author.id) + ";")
+
+                for valid_time in valid_times:
+                    db.execute("INSERT INTO subscriptions (user, time) VALUES (" + str(message.author.id) + ", " + str(valid_time.hour * 100 + valid_time.minute) + ");")
+
+                db.commit()
+                # endregion
+
+                # region generate confirmation message
+                valid_times.sort()
+
+                subscription_active_notification = "Okay, bekommst jetzt von Sonntag bis Montag " + \
+                    "immer eine Benachrichtung zur deiner aktuellen letzte Suche. Die ist übrigens gerade `" + last_search + \
+                    "`.\nDu hast dir "
+
+                for valid_time in valid_times:
+                    subscription_active_notification += "`" + valid_time.astimezone(pytz.timezone('Europe/Berlin')).strftime("%H:%M") + "`, "
+
+                subscription_active_notification = subscription_active_notification[:-2] + " als "
+
+                if len(valid_times) == 1:
+                    subscription_active_notification += "Uhrzeit "
+                else:
+                    subscription_active_notification = replace_last_comma(subscription_active_notification)
+                    subscription_active_notification += "Uhrzeiten "
+
+                subscription_active_notification += "ausgesucht.\n"
+
+                if len(invalid_times) > 0:
+                    if len(invalid_times) == 1:
+                        subscription_active_notification += "Der Parameter `" + invalid_times[0] + "` wurde ignoriert, " +\
+                            "da es keine Uhrzeit ist."
+                    else:
+                        subscription_active_notification += "Die Parameter "
+
+                        for invalid_time in invalid_times:
+                            subscription_active_notification += "`" + invalid_time + "`, "
+
+                        subscription_active_notification = subscription_active_notification[:-2]
+                        subscription_active_notification = replace_last_comma(subscription_active_notification)
+                        subscription_active_notification += " wurden ignoriert, da es keine Uhrzeiten sind."
+
+                await message.channel.send(subscription_active_notification)
+                # endregion
+
+    except Exception as error:
+        # region handel no last search available
+        if error.args[0] == "no last search found":
+            await message.channel.send(
+                "Du musst mindestens einmal was gesucht haben, da du mit den Abo deine letzte Suche abonnierst. " +
+                "Also benutzt noch kurz den `i` oder `info` Befehl.\n" +
+                "Wenn du noch mehr Hilfe brauchst, benutze `h` oder `help` um dir die Hilfe anzeigen zu lassen.\n" +
+                "Falls du danach immer noch Probleme hast, melde dich einfach bei mir :relaxed:\n"
+            )
+        # endregion
+        else:
+            raise error
+    finally:
+        plan.close_database()
+
+
 @client.event
 async def on_message(message):
     # we do not want the bot to reply to itself
@@ -178,6 +286,13 @@ async def on_message(message):
                 "danach all die Fächer, nach denen ausschließlich gesucht werden soll. " +
                 "Falls nichts angegeben wird, wird die letzte Suchanfrage des jeweiligen Benutzters vewenden, " +
                 "falls es möglich ist.\n\n" +
+                "`s` oder `subscribe`\n" +
+                "Abonniert die letzte Suche des jeweiligen Benutzters, sodass sie ihm jeden Tag außer Samstag " +
+                "als private Nachricht gesendet wird. " +
+                "Als Parameter werden alle Uhrzeiten, an denen man die Nachrichten bekommen will, angegeben. " +
+                "Ein Uhrzeiten muss mit Stunde und Minute angegeben werden, die von einem Doppeltpunkt getrennt werden. " +
+                "Zwischen mehreren Uhrzeiten müssen Leerzeichen.\n" +
+                "Wenn kein Parameter angegeben wird, deabonniert man.\n\n"
                 "`u` oder `update`\n" +
                 "Aktualisiert die Datenbank. " +
                 "Sollte nur bei Fehlern in der Datenbank aufgerufen werden, " +
@@ -204,6 +319,11 @@ async def on_message(message):
                 message,
                 plan_command_info
             )
+        elif command == "s" or command == "subscribe":
+            await plan_error_catcher(
+                message,
+                plan_command_subscribe
+            )
         else:
             await message.channel.send(
                 "Neee, `" + command + "` ist definitiv kein Befehl... :thinking:\n" +
@@ -211,6 +331,7 @@ async def on_message(message):
             )
 
 
+# noinspection PyUnusedLocal
 @client.event
 async def on_message_edit(before, after):
     await on_message(after)
@@ -223,31 +344,5 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print("------")
-
-
-async def subscriptions():
-    plan.get_database().execute("CREATE TABLE IF NOT EXISTS subscriptions (user INTEGER UNIQUE, time INTEGER, last INTEGER)")
-    subscribers = plan.get_database().execute("SELECT user FROM subscriptions")
-
-    if subscribers is not None:
-        for subscriber in subscribers:
-            # check if subscription from today or yesterday is not handled yet
-            pass
-    else:
-        return  # No subscriptions left, stop service
-
-    while True:
-        # get next subscriptions to be handled
-        now = pytz.timezone('Europe/Berlin').localize(datetime.datetime.now())
-        next_subscriptions = plan.get_database().execute("SELECT user, time FROM subscriptions WHERE time > " + str(now.hour * 100 + now.minute))
-
-        if next_subscriptions is None:
-            break   # No subscriptions left, stop service
-
-        plan.close_database()
-        # sleep() wait until next subscriptions needs to be handled
-        # send private message to users
-
-client.loop.create_task(subscriptions())
 
 client.run(str(sys.argv[2]))
