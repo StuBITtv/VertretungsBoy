@@ -201,6 +201,8 @@ async def plan_command_subscribe(message):
             if len(valid_times) == 0:
                 await message.channel.send("Du hast keine korrekte Zeit angegeben. Deswegen wird nichts an deinem Abo verändert")
             else:
+                valid_times = set(valid_times)
+
                 # region save to times to database
                 db.execute("DELETE FROM subscriptions WHERE user == " + str(message.author.id) + ";")
 
@@ -218,6 +220,7 @@ async def plan_command_subscribe(message):
                 restart_subscription_service()
 
                 # region generate confirmation message
+                valid_times = list(valid_times)
                 valid_times.sort()
 
                 subscription_active_notification = "Okay, bekommst jetzt von Sonntag bis Montag " + \
