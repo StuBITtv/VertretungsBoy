@@ -368,12 +368,78 @@ id_mutex = Lock()
 last_service_id = 0
 
 
+def get_scheduled_time(time_value):
+    latest_time = datetime.datetime.now()
+    latest_time = latest_time.replace(hour=int(time_value / 100))
+    latest_time = latest_time.replace(minute=time_value % 100)
+    latest_time = latest_time.replace(second=0)
+    return latest_time.replace(microsecond=0)
+
+
+def send_subscription(user, scheduled_time, last):
+    scheduled_time = plan.localize_time(scheduled_time)
+
+    if scheduled_time.timestamp() > last:
+        # TODO send message
+        pass
+
+
 async def subscription_service():
+    # region get service id
     await id_mutex.acquire()
+
     global last_service_id
     last_service_id += 1
     service_id = last_service_id
+
     id_mutex.release()
+    # endregion
+
+    # region check for unhandled subscriptions
+    try:
+        updated_users = set()
+
+        db = await plan.get_database()
+        db.execute("CREATE TABLE IF NOT EXISTS subscriptions (user INTEGER, time INTEGER, last INTEGER)")
+
+        # region check for current day
+        time_value = datetime.datetime.now()
+
+        if time_value.weekday() != 5:
+            time_value = time_value.hour * 100 + time_value.minute
+            latest_subscriptions = db.execute("SELECT user, max(time), last FROM " +
+                                              "(SELECT * FROM subscriptions WHERE time < " + str(time_value) + ") " +
+                                              "GROUP BY user;").fetchall()
+
+            for latest_subscription in latest_subscriptions:
+                scheduled_time = get_scheduled_time(latest_subscription[1])
+
+                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2])
+                updated_users.add(latest_subscription[0])
+        # endregion
+
+        # region check for days before
+        latest_subscriptions = db.execute("SELECT user, max(time), last FROM subscriptions GROUP BY user;").fetchall()
+
+        for latest_subscription in latest_subscriptions:
+            scheduled_time = get_scheduled_time(latest_subscription[1])
+
+            while True:
+                scheduled_time = scheduled_time - datetime.timedelta(days=1)
+
+                if scheduled_time.weekday() != 5:
+                    break
+
+            if not latest_subscription[0] in updated_users:
+                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2])
+        # endregion
+
+    except Exception as error:
+        print("exception at subscription service startup: '" + error.args[0] + "'")
+
+    finally:
+        plan.close_database()
+    # endregion
 
     await client.wait_until_ready()
 
@@ -381,12 +447,15 @@ async def subscription_service():
         print("looped service " + str(service_id))
         await sleep(1)
 
+        # region check service id
         await id_mutex.acquire()
+
         if service_id != last_service_id:
             id_mutex.release()
             break
 
         id_mutex.release()
+        # endregion
 
     print("stopped service " + str(service_id))
 
