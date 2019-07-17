@@ -1,4 +1,5 @@
 import sys
+from asyncio import Lock, sleep
 
 import discord
 import pytz
@@ -150,6 +151,10 @@ def replace_last_comma(string):
     return string[:pos] + " und " + string[pos + 1:]
 
 
+def restart_subscription_service():
+    client.bg_task = client.loop.create_task(subscription_service())
+
+
 async def plan_command_subscribe(message):
     times = message.content[2:].lstrip()
     times = times.split()
@@ -162,6 +167,9 @@ async def plan_command_subscribe(message):
         if len(times) == 0:
             db.execute("DELETE FROM subscriptions WHERE user == " + str(message.author.id) + ";")
             db.commit()
+
+            restart_subscription_service()
+
             await message.channel.send("Okay, keine Benachrichtigungen mehr für dich :slight_smile:")
 
         else:
@@ -196,17 +204,24 @@ async def plan_command_subscribe(message):
                 # region save to times to database
                 db.execute("DELETE FROM subscriptions WHERE user == " + str(message.author.id) + ";")
 
+                now = int(datetime.datetime.now().timestamp())
+
                 for valid_time in valid_times:
-                    db.execute("INSERT INTO subscriptions (user, time) VALUES (" + str(message.author.id) + ", " + str(valid_time.hour * 100 + valid_time.minute) + ");")
+                    db.execute("INSERT INTO subscriptions (user, time, last) " +\
+                               "VALUES (" + str(message.author.id) +\
+                               ", " + str(valid_time.hour * 100 + valid_time.minute) +\
+                               ", " + str(now) + ");")
 
                 db.commit()
                 # endregion
+
+                restart_subscription_service()
 
                 # region generate confirmation message
                 valid_times.sort()
 
                 subscription_active_notification = "Okay, bekommst jetzt von Sonntag bis Montag " + \
-                    "immer eine Benachrichtung zur deiner aktuellen letzte Suche. Die ist übrigens gerade `" + last_search + \
+                    "immer eine Benachrichtung zur deine letzte Suche. Die ist übrigens gerade `" + last_search + \
                     "`.\nDu hast dir "
 
                 for valid_time in valid_times:
@@ -344,5 +359,34 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print("------")
+
+
+id_mutex = Lock()
+last_service_id = 0
+
+
+async def subscription_service():
+    await id_mutex.acquire()
+    global last_service_id
+    last_service_id += 1
+    service_id = last_service_id
+    id_mutex.release()
+
+    await client.wait_until_ready()
+
+    while True:
+        print("looped service " + str(service_id))
+        await sleep(1)
+
+        await id_mutex.acquire()
+        if service_id != last_service_id:
+            id_mutex.release()
+            break
+
+        id_mutex.release()
+
+    print("stopped service " + str(service_id))
+
+client.bg_task = client.loop.create_task(subscription_service())
 
 client.run(str(sys.argv[2]))
