@@ -50,10 +50,10 @@ async def plan_command_update(message):
 
 
 async def plan_command_date(message):
+    plan_dates = await plan.search(None, None)
     last_update = await plan.get_update_date()
     last_update = datetime.datetime.utcfromtimestamp(last_update)
     last_update = pytz.utc.localize(last_update, is_dst=None).astimezone(pytz.timezone('Europe/Berlin'))
-    plan_dates = await plan.search(None, None)
 
     content = ""
 
@@ -376,12 +376,20 @@ def get_scheduled_time(time_value):
     return latest_time.replace(microsecond=0)
 
 
-def send_subscription(user, scheduled_time, last):
+def send_subscription(user, scheduled_time, last, db):
     scheduled_time = plan.localize_time(scheduled_time)
 
     if scheduled_time.timestamp() > last:
-        # TODO send message
+        # TODO send message, update last column
         pass
+
+
+def get_next_day(time, timedelta):
+    while True:
+        time += timedelta
+
+        if time.weekday() != 5:
+            return time
 
 
 async def subscription_service():
@@ -414,7 +422,7 @@ async def subscription_service():
             for latest_subscription in latest_subscriptions:
                 scheduled_time = get_scheduled_time(latest_subscription[1])
 
-                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2])
+                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2], db)
                 updated_users.add(latest_subscription[0])
         # endregion
 
@@ -423,15 +431,10 @@ async def subscription_service():
 
         for latest_subscription in latest_subscriptions:
             scheduled_time = get_scheduled_time(latest_subscription[1])
-
-            while True:
-                scheduled_time = scheduled_time - datetime.timedelta(days=1)
-
-                if scheduled_time.weekday() != 5:
-                    break
+            scheduled_time = get_next_day(scheduled_time, datetime.timedelta(days=-1))
 
             if not latest_subscription[0] in updated_users:
-                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2])
+                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2], db)
         # endregion
 
     except Exception as error:
@@ -444,20 +447,63 @@ async def subscription_service():
     await client.wait_until_ready()
 
     while True:
-        print("looped service " + str(service_id))
-        await sleep(1)
+        # region get time difference to next subscriptions
+        try:
+            time_value = datetime.datetime.now()
+            time_value = time_value.hour * 100 + time_value.minute
+
+            db = await plan.get_database()
+
+            # check for today
+            if datetime.datetime.now().weekday() != 5:
+                next_subscriptions = db.execute(
+                    "SELECT user, time FROM subscriptions WHERE time == (" +
+                    "SELECT min(time) FROM (SELECT time FROM subscriptions WHERE time > " + str(time_value) + ")" +
+                    ");"
+                ).fetchall()
+            else:
+                next_subscriptions = []
+
+            if len(next_subscriptions) == 0:
+                # check for next day
+                next_subscriptions = db.execute(
+                    "SELECT user, time FROM subscriptions WHERE time == (SELECT min(time) FROM subscriptions)"
+                ).fetchall()
+
+                if len(next_subscriptions) == 0:
+                    # no subscription left
+                    return
+                else:
+                    scheduled_time = get_scheduled_time(next_subscriptions[0][1])
+                    scheduled_time = get_next_day(scheduled_time, datetime.timedelta(days=1))
+
+            else:
+                scheduled_time = get_scheduled_time(next_subscriptions[0][1])
+        finally:
+            plan.close_database()
+        # endregion
+
+        await sleep((scheduled_time - datetime.datetime.now()).seconds)
 
         # region check service id
         await id_mutex.acquire()
 
         if service_id != last_service_id:
             id_mutex.release()
-            break
+            return
 
         id_mutex.release()
         # endregion
 
-    print("stopped service " + str(service_id))
+        # region send subscriptions
+        try:
+            db = await plan.get_database()
+            for next_subscription in next_subscriptions:
+                send_subscription(next_subscription[0], scheduled_time, 0, db)
+        finally:
+            plan.close_database()
+        # end region
+
 
 client.bg_task = client.loop.create_task(subscription_service())
 
