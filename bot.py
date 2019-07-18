@@ -68,9 +68,9 @@ async def plan_command_date(message):
     await message.channel.send(content)
 
 
-async def add_to_content(message, content, add):
+async def add_to_content(send_function, content, add):
     if len(content) + len(add) > 2000:
-        await message.channel.send(content)
+        await send_function(content)
         if content[-2:] == "\n\n":
             content = "​\n"  # with zero white space
         else:
@@ -91,59 +91,63 @@ async def plan_command_info(message):
     else:
         search = ""
 
-    entries = await plan.search(message.author.id, search)
+    await create_info_message(message.channel.send, message.author.id, search)
+
+
+async def create_info_message(send_function, user_id, search):
+    entries = await plan.search(user_id, search)
 
     content = ""
 
     if len(search) < 1:
-        search = await plan.get_last_user_search(message.author.id)
+        search = await plan.get_last_user_search(user_id)
         search = search.replace("%", "")
 
     for key in entries.keys():
-        content = await add_to_content(message, content, "__**" + key[:key.find(" ")] + "**__\n\n")
+        content = await add_to_content(send_function, content, "__**" + key[:key.find(" ")] + "**__\n\n")
 
         if len(entries[key][0]) > 0:
-            content = await add_to_content(message, content, "Info zum Tag:\n")
+            content = await add_to_content(send_function, content, "Info zum Tag:\n")
 
             for info in entries[key][0]:
-                content = await add_to_content(message, content, "- " + info[0] + "\n")
+                content = await add_to_content(send_function, content, "- " + info[0] + "\n")
 
-            content = await add_to_content(message, content, "\n")
+            content = await add_to_content(send_function, content, "\n")
 
         if len(entries[key][1]) > 0:
             for row in entries[key][1]:
                 if not string_empty(row[0]):
                     if row[0] == "Frühvertretung" or row[0][-2:] == "AG":
-                        content = await add_to_content(message, content, "**" + row[0] + "**\n")
+                        content = await add_to_content(send_function, content, "**" + row[0] + "**\n")
                     elif row[0].find(",") > 0:
-                        content = await add_to_content(message, content, "**Klassen:   " + row[0] + "**\n")
+                        content = await add_to_content(send_function, content, "**Klassen:   " + row[0] + "**\n")
                     else:
-                        content = await add_to_content(message, content, "**Klasse:      " + row[0] + "**\n")
+                        content = await add_to_content(send_function, content, "**Klasse:      " + row[0] + "**\n")
 
                 if not string_empty(row[1]):
                     if row[1].find("-") > 0:
-                        content = await add_to_content(message, content, "Stunden:    " + row[1] + "\n")
+                        content = await add_to_content(send_function, content, "Stunden:    " + row[1] + "\n")
                     else:
-                        content = await add_to_content(message, content, "Stunde:      " + row[1] + "\n")
+                        content = await add_to_content(send_function, content, "Stunde:      " + row[1] + "\n")
 
                 if not string_empty(row[2]):
-                    content = await add_to_content(message, content, "Art:             " + row[2] + "\n")
+                    content = await add_to_content(send_function, content, "Art:             " + row[2] + "\n")
 
                 if not string_empty(row[3]):
-                    content = await add_to_content(message, content, "Fach:         " + row[3] + "\n")
+                    content = await add_to_content(send_function, content, "Fach:         " + row[3] + "\n")
 
                 if not string_empty(row[4]):
-                    content = await add_to_content(message, content, "Raum:        " + row[4] + "\n")
+                    content = await add_to_content(send_function, content, "Raum:        " + row[4] + "\n")
 
                 if not string_empty(row[5]):
-                    content = await add_to_content(message, content, "Text:          " + row[5] + "\n")
+                    content = await add_to_content(send_function, content, "Text:          " + row[5] + "\n")
 
-                content = await add_to_content(message, content, "\n")
+                content = await add_to_content(send_function, content, "\n")
 
         else:
-            content = await add_to_content(message, content, "Nope, nichts da für `" + search + "` :neutral_face:\n\n")
+            content = await add_to_content(send_function, content, "Nope, nichts da für `" + search + "` :neutral_face:\n\n")
 
-    await message.channel.send(content)
+    await send_function(content)
 
 
 def replace_last_comma(string):
@@ -170,7 +174,11 @@ async def plan_command_subscribe(message):
 
             restart_subscription_service()
 
-            await message.channel.send("Okay, keine Benachrichtigungen mehr für dich :slight_smile:")
+            await message.channel.send(
+                "Okay, keine Benachrichtigungen mehr für dich :slight_smile:\n\n" +
+                "_Wenn du eigentlich abonnieren wolltest, muss du noch die Uhrzeiten, " +
+                "an denen du benachricht werden willst, nach dem Befehl angeben_."
+            )
 
         else:
             # region check if last search is available
@@ -224,7 +232,7 @@ async def plan_command_subscribe(message):
                 valid_times.sort()
 
                 subscription_active_notification = "Okay, bekommst jetzt von Sonntag bis Montag " + \
-                    "immer eine Benachrichtung zur deine letzte Suche. Die ist übrigens gerade `" + last_search + \
+                    "immer eine Benachrichtung zu deiner letzten Suche. Die ist übrigens gerade `" + last_search + \
                     "`.\nDu hast dir "
 
                 for valid_time in valid_times:
@@ -302,15 +310,16 @@ async def on_message(message):
                 "Zeigt die Einträge in der Datenbank, die deiner Suche entsprechen und die Info zum Tag an. " +
                 "Als Paramter kann zuerst eine Klasse angegeben werden und " +
                 "danach all die Fächer, nach denen ausschließlich gesucht werden soll. " +
-                "Falls nichts angegeben wird, wird die letzte Suchanfrage des jeweiligen Benutzters vewenden, " +
+                "Falls nichts angegeben wird, wird deine letzte Suchanfrage vewenden, " +
                 "falls es möglich ist.\n\n" +
                 "`s` oder `subscribe`\n" +
-                "Abonniert die letzte Suche des jeweiligen Benutzters, sodass sie ihm jeden Tag außer Samstag " +
+                "Abonniert deine letzte Suchanfrage, sodass sie dir jeden Tag außer Samstag " +
                 "als private Nachricht gesendet wird. " +
-                "Als Parameter werden alle Uhrzeiten, an denen man die Nachrichten bekommen will, angegeben. " +
-                "Ein Uhrzeiten muss mit Stunde und Minute angegeben werden, die von einem Doppeltpunkt getrennt werden. " +
+                "Als Parameter werden alle Uhrzeiten, an denen du die Nachrichten bekommen will, angegeben. " +
+                "Ein Uhrzeiten muss mit Stunde und Minute angegeben werden. " +
+                "Stunden und Minuten werden von einem Doppeltpunkt getrennt. " +
                 "Zwischen mehreren Uhrzeiten müssen Leerzeichen.\n" +
-                "Wenn kein Parameter angegeben wird, deabonniert man.\n\n"
+                "Wenn kein Parameter angegeben wird, deabonnierst du vom Service.\n\n"
                 "`u` oder `update`\n" +
                 "Aktualisiert die Datenbank. " +
                 "Sollte nur bei Fehlern in der Datenbank aufgerufen werden, " +
@@ -376,12 +385,32 @@ def get_scheduled_time(time_value):
     return latest_time.replace(microsecond=0)
 
 
-def send_subscription(user, scheduled_time, last, db):
+async def send_subscription(user, scheduled_time, last):
+    plan.close_database()
     scheduled_time = plan.localize_time(scheduled_time)
 
+    await client.wait_until_ready()
+
     if scheduled_time.timestamp() > last:
-        # TODO send message, update last column
-        pass
+        try:
+            await create_info_message(client.get_user(user).send, user, "")
+        except Exception as error:
+            print(error.args[0])
+
+        db = None
+
+        try:
+            db = await plan.get_database()
+            db.execute(
+                "UPDATE subscriptions SET last = " + str(int(datetime.datetime.now().timestamp())) + " " +
+                "WHERE user == " + str(user) + " and time = " + str(scheduled_time.hour * 100 + scheduled_time.minute) + ";"
+            )
+            db.commit()
+
+        finally:
+            return db
+
+    return await plan.get_database()
 
 
 def get_next_day(time, timedelta):
@@ -404,6 +433,7 @@ async def subscription_service():
     # endregion
 
     # region check for unhandled subscriptions
+    db = None
     try:
         updated_users = set()
 
@@ -422,7 +452,7 @@ async def subscription_service():
             for latest_subscription in latest_subscriptions:
                 scheduled_time = get_scheduled_time(latest_subscription[1])
 
-                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2], db)
+                db = await send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2])
                 updated_users.add(latest_subscription[0])
         # endregion
 
@@ -434,13 +464,14 @@ async def subscription_service():
             scheduled_time = get_next_day(scheduled_time, datetime.timedelta(days=-1))
 
             if not latest_subscription[0] in updated_users:
-                send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2], db)
+                db = await send_subscription(latest_subscription[0], scheduled_time, latest_subscription[2])
         # endregion
 
     except Exception as error:
         print("exception at subscription service startup: '" + error.args[0] + "'")
 
     finally:
+        db.commit()
         plan.close_database()
     # endregion
 
@@ -499,8 +530,10 @@ async def subscription_service():
         try:
             db = await plan.get_database()
             for next_subscription in next_subscriptions:
-                send_subscription(next_subscription[0], scheduled_time, 0, db)
+                db = await send_subscription(next_subscription[0], scheduled_time, 0)
         finally:
+            if db is not None:
+                db.commit()
             plan.close_database()
         # end region
 
