@@ -103,8 +103,12 @@ class Plan(HTMLParser):
         return self.conn
 
     def close_database(self):
-        self.conn.close()
-        self.db_mutex.release()
+        if self.db_mutex.locked():
+            self.conn.close()
+            self.db_mutex.release()
+            return True
+        else:
+            return False
 
     @staticmethod
     def localize_time(time):

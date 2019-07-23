@@ -1,4 +1,3 @@
-import sys
 from asyncio import Lock, sleep
 
 import discord
@@ -231,7 +230,7 @@ async def plan_command_subscribe(message):
                 valid_times = list(valid_times)
                 valid_times.sort()
 
-                subscription_active_notification = "Okay, bekommst jetzt von Sonntag bis Montag " + \
+                subscription_active_notification = "Okay, bekommst jetzt von Sonntag bis Freitag " + \
                     "immer eine Benachrichtung zu deiner letzten Suche. Die ist übrigens gerade `" + last_search + \
                     "`.\nDu hast dir "
 
@@ -386,7 +385,7 @@ def get_scheduled_time(time_value):
 
 
 async def send_subscription(user, scheduled_time, last):
-    plan.close_database()
+    db_was_blocked = plan.close_database()
     scheduled_time = plan.localize_time(scheduled_time)
 
     await client.wait_until_ready()
@@ -408,9 +407,13 @@ async def send_subscription(user, scheduled_time, last):
             db.commit()
 
         finally:
-            return db
+            if db_was_blocked:
+                return db
+            else:
+                plan.close_database()
 
-    return await plan.get_database()
+    if db_was_blocked:
+        return await plan.get_database()
 
 
 def get_next_day(time, timedelta):
@@ -527,14 +530,8 @@ async def subscription_service():
         # endregion
 
         # region send subscriptions
-        try:
-            db = await plan.get_database()
-            for next_subscription in next_subscriptions:
-                db = await send_subscription(next_subscription[0], scheduled_time, 0)
-        finally:
-            if db is not None:
-                db.commit()
-            plan.close_database()
+        for next_subscription in next_subscriptions:
+            await send_subscription(next_subscription[0], scheduled_time, 0)
         # end region
 
 
