@@ -86,7 +86,7 @@ async def plan_command_info(message):
     search = message.content[2:].lstrip()
 
     if search.find(" ") > 0:
-        search = search[search.find(" "):]
+        search = search[search.find(" "):].trim()
     else:
         search = ""
 
@@ -144,7 +144,7 @@ async def create_info_message(send_function, user_id, search):
                 content = await add_to_content(send_function, content, "\n")
 
         else:
-            content = await add_to_content(send_function, content, "Nope, nichts da für `" + search + "` :neutral_face:\n\n")
+            content = await add_to_content(send_function, content, "Nope, nichts da für `" + search.strip() + "` :neutral_face:\n\n")
 
     await send_function(content)
 
