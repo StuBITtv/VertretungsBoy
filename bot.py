@@ -231,7 +231,7 @@ async def plan_command_subscribe(message):
                 valid_times.sort()
 
                 subscription_active_notification = "Okay, bekommst jetzt von Sonntag bis Freitag " + \
-                    "immer eine Benachrichtung zu deiner letzten Suche. Die ist übrigens gerade `" + last_search + \
+                    "immer eine Benachrichtung zu deiner letzten Suche. Die ist übrigens gerade `" + last_search.strip() + \
                     "`.\nDu hast dir "
 
                 for valid_time in valid_times:
