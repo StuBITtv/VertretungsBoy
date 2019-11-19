@@ -86,7 +86,7 @@ async def plan_command_info(message):
     search = message.content[2:].lstrip()
 
     if search.find(" ") > 0:
-        search = search[search.find(" "):].trim()
+        search = search[search.find(" "):].strip()
     else:
         search = ""
 
