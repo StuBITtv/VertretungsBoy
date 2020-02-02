@@ -1,7 +1,7 @@
 # VertretungsBoy
-A discord bot for the [representation plan of the DBG-Metzingen Gymnasium][link_school].
+A discord bot for the representation plan of the DBG-Metzingen Gymnasium which is hosted on [DSBmobile][link_dsbmobile].
 
-[link_school]: https://dbg-metzingen.de/vertretungsplan/zwei_tage.htm
+[link_dsbmobile]: https://www.dsbmobile.de/
 
 # How to use it
 Just places it anywhere and run it with pyhton3.
