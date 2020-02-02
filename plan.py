@@ -6,6 +6,10 @@ import codecs
 from html.parser import HTMLParser
 from pysqlcipher3 import dbapi2 as sqlCipher
 import datetime
+import json
+import base64
+import gzip
+from bs4 import BeautifulSoup as bs
 
 KEY = ""
 
@@ -84,13 +88,14 @@ def quote_identifier(s, errors="strict"):
 
 
 class Plan(HTMLParser):
-    def __init__(self, db_path, urls, auto_update_times):
+    def __init__(self, db_path, auto_update_times, plan_user, plan_password):
         self.db_path = db_path
         self.auto_update_times = auto_update_times
-        self.urls = urls
         self.last_attr = []
         self.row = []
-        self.current_url = ""
+        self.currentPlan = "",
+        self.planUser = plan_user
+        self.planPassword = plan_password
         self.conn = None
         self.last_prepared_row = []
         self.db_mutex = Lock()
@@ -114,6 +119,68 @@ class Plan(HTMLParser):
     def localize_time(time):
         return pytz.timezone('Europe/Berlin').localize(time)
 
+    def get_urls(self):
+        LOGIN_URL = "https://www.dsbmobile.de/Login.aspx"
+        DATA_URL = "https://www.dsbmobile.de/jhw-1fd98248-440c-4283-bef6-dc82fe769b61.ashx/GetData"
+
+        session = requests.Session()
+
+        r = session.get(LOGIN_URL)
+
+        page = bs(r.text, "html.parser")
+        data = {
+            "txtUser": self.planUser,
+            "txtPass": self.planPassword,
+            "ctl03": "Anmelden",
+        }
+        fields = ["__LASTFOCUS", "__VIEWSTATE", "__VIEWSTATEGENERATOR",
+                  "__EVENTTARGET", "__EVENTARGUMENT", "__EVENTVALIDATION"]
+        for field in fields:
+            element = page.find(id=field)
+            if element is not None:
+                data[field] = element.get("value")
+
+        session.post(LOGIN_URL, data)
+
+        params = {
+            "UserId": "",
+            "UserPw": "",
+            "Abos": [],
+            "AppVersion": "2.3",
+            "Language": "de",
+            "OsVersion": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36",
+            "AppId": "",
+            "Device": "WebApp",
+            "PushId": "",
+            "BundleId": "de.heinekingmedia.inhouse.dsbmobile.web",
+            "Date": "2019-11-06T16:03:11.322Z",
+            "LastUpdate": "2019-11-06T16:03:11.322Z"
+        }
+        # Convert params into the right format
+        params_bytestring = json.dumps(params, separators=(',', ':')).encode("UTF-8")
+        params_compressed = base64.b64encode(gzip.compress(params_bytestring)).decode("UTF-8")
+        json_data = {"req": {"Data": params_compressed, "DataType": 1}}
+
+        headers = {"Referer": "www.dsbmobile.de"}
+        r = session.post(DATA_URL, json=json_data, headers=headers)
+
+        data_compressed = json.loads(r.content)["d"]
+        data = json.loads(gzip.decompress(base64.b64decode(data_compressed)))
+
+        for menuItem in data['ResultMenuItems']:
+            if menuItem['Title'] == 'Inhalte':
+                urls = []
+
+                for child in menuItem['Childs']:
+                    if child['MethodName'] == 'timetable':
+
+                        for innerChild in child['Root']['Childs']:
+                            urls.append(innerChild['Childs'][0]['Detail'])
+
+                return urls
+
+        return []
+
     async def run_database_operation(self, run, *args):
         self.close_database()
         try:
@@ -128,16 +195,18 @@ class Plan(HTMLParser):
             self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
             self.conn.execute("CREATE TABLE IF NOT EXISTS info (side TEXT, info TEXT)")
 
-            for url in self.urls:
+            urls = self.get_urls()
+
+            for index, url in enumerate(urls):
                 website = requests.get(url)
-                self.current_url = url
+                self.currentPlan = 'Plan' + str(index)
 
-                self.conn.execute("DELETE FROM dates WHERE side == ?", (url,))
-                self.conn.execute("DELETE FROM info WHERE side == ?", (url,))
+                self.conn.execute("DELETE FROM dates WHERE side == ?", (self.currentPlan,))
+                self.conn.execute("DELETE FROM info WHERE side == ?", (self.currentPlan,))
 
-                self.conn.execute("DROP TABLE IF EXISTS " + quote_identifier(url))
+                self.conn.execute("DROP TABLE IF EXISTS " + quote_identifier(self.currentPlan))
                 self.conn.execute(
-                    """CREATE TABLE """ + quote_identifier(url) + """ (
+                    """CREATE TABLE """ + quote_identifier(self.currentPlan) + """ (
                             grade TEXT,
                             lessons TEXT,
                             kind TEXT, 
@@ -157,7 +226,7 @@ class Plan(HTMLParser):
 
             self.last_attr = []
             self.row = []
-            self.current_url = ""
+            self.currentPlan = ""
             self.last_prepared_row = []
 
     def handle_starttag(self, tag, attrs):
@@ -174,12 +243,12 @@ class Plan(HTMLParser):
                     for part in self.row:
                         info += part
 
-                    self.conn.execute("INSERT INTO info (side, info) VALUES (?, ?);", (self.current_url, info))
+                    self.conn.execute("INSERT INTO info (side, info) VALUES (?, ?);", (self.currentPlan, info))
                     # endregion
 
                 elif self.last_attr[0][1] == "mon_title":
                     # region insert date of plan into table
-                    self.conn.execute("INSERT INTO dates (side, date) VALUES (?, ?)", (self.current_url, self.row[0]))
+                    self.conn.execute("INSERT INTO dates (side, date) VALUES (?, ?)", (self.currentPlan, self.row[0]))
                     # endregion
 
                 elif self.last_attr[0][1] == "list" and len(self.row) == 7:
@@ -196,7 +265,7 @@ class Plan(HTMLParser):
                         # region completes text at the previous row in the table
                         self.conn.execute(
                             """
-                                UPDATE """ + quote_identifier(self.current_url) + """
+                                UPDATE """ + quote_identifier(self.currentPlan) + """
                                 SET text = ?
                                 WHERE 
                                 grade == ? and lessons == ? and kind == ? and subjects == ? and rooms == ? and text == ?
@@ -226,7 +295,7 @@ class Plan(HTMLParser):
 
                         self.conn.execute(
                             """
-                                  INSERT INTO """ + quote_identifier(self.current_url) + """
+                                  INSERT INTO """ + quote_identifier(self.currentPlan) + """
                                   (grade, lessons, kind, subjects, rooms, text) VALUES (?, ?, ?, ?, ?, ?)
                             """,
                             prepared_row
@@ -295,13 +364,13 @@ class Plan(HTMLParser):
             self.conn.execute("CREATE TABLE IF NOT EXISTS dates (side TEXT UNIQUE, date TEXT)")
             self.conn.execute("CREATE TABLE IF NOT EXISTS info (side TEXT, info TEXT)")
 
-            for url in self.urls:
+            for index in range(2):
                 # region get plan date
-                plan_date = self.conn.execute("SELECT date FROM dates WHERE side == ?", (url,))
+                plan_date = self.conn.execute("SELECT date FROM dates WHERE side == ?", ('Plan' + str(index),))
                 plan_date = plan_date.fetchone()
 
                 if plan_date is None or len(plan_date) < 1:
-                    raise PlanError("missing plan date for " + quote_identifier(url))
+                    raise PlanError("missing plan date for " + quote_identifier('Plan' + str(index)))
 
                 plan_date = plan_date[0]
 
@@ -315,13 +384,13 @@ class Plan(HTMLParser):
                 # endregion
 
                 # region get info
-                info = self.conn.execute("SELECT info FROM info WHERE side == ?", (url,))
+                info = self.conn.execute("SELECT info FROM info WHERE side == ?", ('Plan' + str(index),))
                 info = info.fetchall()
                 # endregion
 
                 # region get entries
                 if user_id is not None:
-                    sql_query = "SELECT * FROM " + quote_identifier(url) + " WHERE grade LIKE ? AND ("
+                    sql_query = "SELECT * FROM " + quote_identifier('Plan' + str(index)) + " WHERE grade LIKE ? AND ("
 
                     if len(search) > 1:
                         sql_query += "subjects LIKE ? OR " * (len(search) - 1)

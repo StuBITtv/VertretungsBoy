@@ -13,11 +13,9 @@ if len(sys.argv) < 3:
 client = discord.Client()
 plan = Plan(
     sys.argv[1],
-    [
-        "https://dbg-metzingen.de/vertretungsplan/tage/subst_001.htm",
-        "https://dbg-metzingen.de/vertretungsplan/tage/subst_002.htm"
-    ],
-    ["8:30", "15:00"]
+    ["8:30", "15:00"],
+    'username',
+    'password'
 )
 
 
