@@ -121,7 +121,7 @@ class Plan(HTMLParser):
 
     def get_urls(self):
         LOGIN_URL = "https://www.dsbmobile.de/Login.aspx"
-        DATA_URL = "https://www.dsbmobile.de/jhw-1fd98248-440c-4283-bef6-dc82fe769b61.ashx/GetData"
+        DATA_URL = "https://www.dsbmobile.de/jhw-ecd92528-a4b9-425f-89ee-c7038c72b9a6.ashx/GetData"
 
         session = requests.Session()
 
@@ -164,7 +164,11 @@ class Plan(HTMLParser):
         headers = {"Referer": "www.dsbmobile.de"}
         r = session.post(DATA_URL, json=json_data, headers=headers)
 
-        data_compressed = json.loads(r.content)["d"]
+        try:
+            data_compressed = json.loads(r.content)["d"]
+        except KeyError:
+            raise PlanError('could not fetch online plan')
+
         data = json.loads(gzip.decompress(base64.b64decode(data_compressed)))
 
         for menuItem in data['ResultMenuItems']:

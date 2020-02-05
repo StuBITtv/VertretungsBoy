@@ -23,6 +23,9 @@ async def plan_error_catcher(message, run):
     try:
         await run(message)
     except Exception as error:
+        tb = traceback.format_exc()
+        print(tb)
+
         error_msg = "Ooops, das hat wohl nicht funktioniert :no_mouth:\n\n" + \
                     "`" + error.args[0] + "`"
 
