@@ -12,6 +12,6 @@ If your setup is correct, you should now see on discord that the bot is online.
 Just type ">>" in a chat, where the bot is allowed to answer, to see if it works.
 
 # Dependencies
-It requires the python libraries `pytz`, `requests`, `codecs`, `html`, `json`, `base64`, `gzip`, `bs4`, `pysqlcipher3` and `datetime`. As `pysqlcipher3` is not longer available via pip, you should check out their [project page on GitHub][link_pysqlcipher3_github].
+It requires the python libraries `pytz`, `requests`, `codecs`, `html`, `json`, `base64`, `gzip`, `uuid`, `pysqlcipher3` and `datetime`. As `pysqlcipher3` is not longer available via pip, you should check out their [project page on GitHub][link_pysqlcipher3_github].
 
 [link_pysqlcipher3_github]: https://github.com/rigglemania/pysqlcipher3
