@@ -1,15 +1,15 @@
+import uuid
 from asyncio import Lock
 
 import pytz
 import requests
 import codecs
 from html.parser import HTMLParser
-from pysqlcipher3 import dbapi2 as sqlCipher
+import sqlite3 as sqlCipher
 import datetime
 import json
 import base64
 import gzip
-from bs4 import BeautifulSoup as bs
 
 KEY = ""
 
@@ -120,56 +120,45 @@ class Plan(HTMLParser):
         return pytz.timezone('Europe/Berlin').localize(time)
 
     def get_urls(self):
-        LOGIN_URL = "https://www.dsbmobile.de/Login.aspx"
-        DATA_URL = "https://www.dsbmobile.de/jhw-ecd92528-a4b9-425f-89ee-c7038c72b9a6.ashx/GetData"
+        # Iso format is for example 2019-10-29T19:20:31.875466
+        current_time = datetime.datetime.now().isoformat()
+        # Cut off last 3 digits and add 'Z' to get correct format
+        current_time = current_time[:-3] + "Z"
 
-        session = requests.Session()
-
-        r = session.get(LOGIN_URL)
-
-        page = bs(r.text, "html.parser")
-        data = {
-            "txtUser": self.planUser,
-            "txtPass": self.planPassword,
-            "ctl03": "Anmelden",
-        }
-        fields = ["__LASTFOCUS", "__VIEWSTATE", "__VIEWSTATEGENERATOR",
-                  "__EVENTTARGET", "__EVENTARGUMENT", "__EVENTVALIDATION"]
-        for field in fields:
-            element = page.find(id=field)
-            if element is not None:
-                data[field] = element.get("value")
-
-        session.post(LOGIN_URL, data)
-
+        # Parameters required for the server to accept our data request
         params = {
-            "UserId": "",
-            "UserPw": "",
-            "Abos": [],
-            "AppVersion": "2.3",
+            "UserId": self.planUser,
+            "UserPw": self.planPassword,
+            "AppVersion": "2.5.9",
             "Language": "de",
-            "OsVersion": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36",
-            "AppId": "",
-            "Device": "WebApp",
-            "PushId": "",
-            "BundleId": "de.heinekingmedia.inhouse.dsbmobile.web",
-            "Date": "2019-11-06T16:03:11.322Z",
-            "LastUpdate": "2019-11-06T16:03:11.322Z"
+            "OsVersion": "28 8.0",
+            "AppId": str(uuid.uuid4()),
+            "Device": "SM-G935F",
+            "BundleId": "de.heinekingmedia.dsbmobile",
+            "Date": current_time,
+            "LastUpdate": current_time
         }
         # Convert params into the right format
         params_bytestring = json.dumps(params, separators=(',', ':')).encode("UTF-8")
         params_compressed = base64.b64encode(gzip.compress(params_bytestring)).decode("UTF-8")
-        json_data = {"req": {"Data": params_compressed, "DataType": 1}}
 
-        headers = {"Referer": "www.dsbmobile.de"}
-        r = session.post(DATA_URL, json=json_data, headers=headers)
+        # Send the request
+        json_data = {"req": {"Data": params_compressed, "DataType": 1}}
+        r = requests.post("https://app.dsbcontrol.de/JsonHandler.ashx/GetData", json = json_data)
 
         try:
-            data_compressed = json.loads(r.content)["d"]
+            if r.status_code == 200:
+                # Decompress response
+                data_compressed = json.loads(r.content)["d"]
+            else:
+                raise PlanError('could not fetch online plans')
         except KeyError:
-            raise PlanError('could not fetch online plan')
+            raise PlanError('could not fetch online plans')
 
         data = json.loads(gzip.decompress(base64.b64decode(data_compressed)))
+
+        if data['Resultcode'] != 0:
+            raise PlanError('could not fetch online plans')
 
         for menuItem in data['ResultMenuItems']:
             if menuItem['Title'] == 'Inhalte':

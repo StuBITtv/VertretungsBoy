@@ -18,27 +18,29 @@ plan = Plan(
     'password'
 )
 
+def create_error_message_text(error):
+    tb = traceback.format_exc()
+    print(tb)
+
+    error_msg = "Ooops, das hat wohl nicht funktioniert :no_mouth:\n\n" + \
+                "`" + error.args[0] + "`"
+
+    if error.args[0] == "no last search found":
+        error_msg += "\n\n"
+        error_msg += "**Wahrscheinlich hast du einfach noch nie nach etwas gesucht**.\n"
+        error_msg += "Gib einfach nach den Befehl ein Leerzeichen und deine Suche ein, "
+        error_msg += "dann musst du sie beim nächsten Mal nicht mehr eingeben :blush:\n"
+        error_msg += "Wenn du noch mehr Hilfe brauchst, benutze `h` oder `help` um dir die Hilfe anzeigen zu lassen.\n"
+        error_msg += "Falls du danach immer noch Probleme hast, melde dich einfach bei mir :relaxed:\n"
+
+    return error_msg
 
 async def plan_error_catcher(message, run):
     try:
         await run(message)
     except Exception as error:
-        tb = traceback.format_exc()
-        print(tb)
-
-        error_msg = "Ooops, das hat wohl nicht funktioniert :no_mouth:\n\n" + \
-                    "`" + error.args[0] + "`"
-
-        if error.args[0] == "no last search found":
-            error_msg += "\n\n"
-            error_msg += "**Wahrscheinlich hast du einfach noch nie nach etwas gesucht**.\n"
-            error_msg += "Gib einfach nach den Befehl ein Leerzeichen und deine Suche ein, "
-            error_msg += "dann musst du sie beim nächsten Mal nicht mehr eingeben :blush:\n"
-            error_msg += "Wenn du noch mehr Hilfe brauchst, benutze `h` oder `help` um dir die Hilfe anzeigen zu lassen.\n"
-            error_msg += "Falls du danach immer noch Probleme hast, melde dich einfach bei mir :relaxed:\n"
-
         await message.channel.send(
-            error_msg
+            create_error_message_text(error)
         )
 
 
@@ -395,7 +397,7 @@ async def send_subscription(user, scheduled_time, last):
         try:
             await create_info_message(client.get_user(user).send, user, "")
         except Exception as error:
-            print(error.args[0])
+            await client.get_user(user).send(create_error_message_text(error))
 
         db = None
 
