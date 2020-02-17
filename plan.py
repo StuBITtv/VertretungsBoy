@@ -5,7 +5,7 @@ import pytz
 import requests
 import codecs
 from html.parser import HTMLParser
-import sqlite3 as sqlCipher
+from pysqlcipher3 import dbapi2 as sqlCipher
 import datetime
 import json
 import base64
